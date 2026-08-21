@@ -1,0 +1,8 @@
+# bootc-image-builder / disk image output
+output/
+*.raw
+*.qcow2
+*.vmdk
+*.xz
+
+.DS_Store
