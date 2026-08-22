@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  IMAGE: ${{ github.repository }}
+  IMAGE: ${{ github.event.repository.name }}
 
 jobs:
   cleanup-image:
