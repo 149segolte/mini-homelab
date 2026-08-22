@@ -67,7 +67,7 @@ jobs:
           registry: ${{ env.QUAY_REGISTRY }}
 
       - name: Build
-        run: ./build.py build --tag ${{ steps.vars.outputs.tag }}
+        run: ./build.py build --tag ${{ steps.vars.outputs.tag }} --cache-registry ${{ env.GHCR_REGISTRY }}
 
       - name: Push to ghcr.io
         run: ./build.py push --tag ${{ steps.vars.outputs.tag }} ${{ env.GHCR_REGISTRY }}

@@ -23,9 +23,17 @@ env:
   GIT_REF: ${{ github.head_ref || github.ref_name }}
   GIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
+  GHCR_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  GHCR_REGISTRY_USER: ${{ github.actor }}
+  GHCR_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   lint-and-build:
     runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - uses: actions/checkout@v7
 
@@ -44,9 +52,16 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
 
+      - name: Log in to ghcr.io
+        uses: redhat-actions/podman-login@v1
+        with:
+          username: ${{ env.GHCR_REGISTRY_USER }}
+          password: ${{ env.GHCR_REGISTRY_PASSWORD }}
+          registry: ${{ env.GHCR_REGISTRY }}
+
       # A passing build is also a passing `bootc container lint`.
       - name: Build
-        run: ./build.py build --tag ${{ steps.vars.outputs.tag }}
+        run: ./build.py build --tag ${{ steps.vars.outputs.tag }} --cache-registry ${{ env.GHCR_REGISTRY }}
 
       # # TODO: Might wanna look into bcvk for testing
       #

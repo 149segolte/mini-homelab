@@ -25,9 +25,24 @@ TAG = "latest"
 # --- BEGIN: Project tasks ---
 
 
-def build(tag: str = TAG) -> None:
-    """Build the host image. `bootc container lint` runs inside the build."""
-    _run("podman", "build", "--platform", PLATFORM, "-t", f"{IMAGE}:{tag}", "bootc/")
+def build(tag: str = TAG, cache_registry: str = "") -> None:
+    """Build the host image. `bootc container lint` runs inside the build.
+
+    Args:
+        tag: The image tag to use.
+        cache_registry: The cache registry to use for the build. (pushed to `{IMAGE}-cache`)
+    """
+    cache = f"{cache_registry}/{IMAGE}-cache" if cache_registry else None
+    _run(
+        "podman",
+        "build",
+        "--platform",
+        PLATFORM,
+        "-t",
+        f"{IMAGE}:{tag}",
+        *(["--layers", "--cache-from", cache, "--cache-to", cache] if cache else []),
+        "bootc/",
+    )
 
 
 def push(registry: str, tag: str = TAG) -> None:

@@ -10,8 +10,15 @@ on:
         type: boolean
         default: true
 
+concurrency:
+  group: cleanup-${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ${{ github.repository }}
+
 jobs:
-  clean:
+  cleanup-image:
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -19,7 +26,23 @@ jobs:
     steps:
       - uses: dataaxiom/ghcr-cleanup-action@v1
         with:
+          repository: ${{ env.IMAGE }}
+          package: ${{ env.IMAGE }}
           older-than: 30d
           keep-n-tagged: 5 # safety net: never prune everything
           exclude-tags: latest
+          dry-run: ${{ github.event.inputs.dry_run || false }}
+
+  cleanup-build-cache:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    steps:
+      - uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          repository: ${{ env.IMAGE }}-cache
+          package: ${{ env.IMAGE }}-cache
+          older-than: 30d
+          keep-n-tagged: 1
           dry-run: ${{ github.event.inputs.dry_run || false }}
