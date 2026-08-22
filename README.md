@@ -66,7 +66,7 @@ it. CI tags `latest` on `main` and the short commit SHA elsewhere.
 ## Build increments
 
 - [x] bare scaffold
-- [ ] CI build and push to ghcr.io/quay.io
+- [x] CI build and push to ghcr.io/quay.io
 - [ ] networking: admin AP + upstream client
 - [ ] firewalld zones
 - [ ] k3s
