@@ -28,7 +28,7 @@ jobs:
         with:
           repository: ${{ env.IMAGE }}
           package: ${{ env.IMAGE }}
-          older-than: 30d
+          older-than: 30 days
           keep-n-tagged: 5 # safety net: never prune everything
           exclude-tags: latest
           dry-run: ${{ github.event.inputs.dry_run || false }}
@@ -43,6 +43,6 @@ jobs:
         with:
           repository: ${{ env.IMAGE }}-cache
           package: ${{ env.IMAGE }}-cache
-          older-than: 30d
+          older-than: 30 days
           keep-n-tagged: 1
           dry-run: ${{ github.event.inputs.dry_run || false }}
