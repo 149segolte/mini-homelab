@@ -25,12 +25,12 @@ internal 2.4GHz AP (brcmfmac)      firewalld zone: admin, 172.19.149.0/24
 
 ## Key decisions
 
-| Decision | Why |
-|---|---|
-| U-Boot / DeviceTree boot, not EDK2 | EDK2 puts onboard wifi out of scope |
-| firewalld, not raw nftables | Zone model, and k3s documents a supported firewalld configuration |
-| `--node-ip` on the admin address | Survives upstream wifi loss without reporting an unroutable address |
-| `bootc upgrade` without `--apply` | Stages the image automatically; reboot stays deliberate |
+| Decision                           | Why                                                                 |
+| ---------------------------------- | ------------------------------------------------------------------- |
+| U-Boot / DeviceTree boot, not EDK2 | EDK2 puts onboard wifi out of scope                                 |
+| firewalld, not raw nftables        | Zone model, and k3s documents a supported firewalld configuration   |
+| `--node-ip` on the admin address   | Survives upstream wifi loss without reporting an unroutable address |
+| `bootc upgrade` without `--apply`  | Stages the image automatically; reboot stays deliberate             |
 
 Config goes in `/usr` wherever possible (versioned with the image, cannot drift).
 `/etc` only for genuinely machine-local config. SSH keys are injected at install time

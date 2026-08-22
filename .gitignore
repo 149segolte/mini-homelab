@@ -5,4 +5,8 @@ output/
 *.vmdk
 *.xz
 
+# MacOS Artifacts
 .DS_Store
+
+# Python related
+.ruff_cache
