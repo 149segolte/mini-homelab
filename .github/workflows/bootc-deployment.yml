@@ -1,0 +1,76 @@
+name: bootc-deployment
+
+on:
+  workflow_run:
+    workflows:
+      - bootc-ci
+    types:
+      - completed
+  workflow_dispatch:
+
+concurrency:
+  group: cd-${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  GIT_REF: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+  GIT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+  GHCR_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  GHCR_REGISTRY_USER: ${{ github.actor }}
+  GHCR_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+  QUAY_REGISTRY: quay.io/${{ github.repository_owner }}
+  QUAY_REGISTRY_USER: ${{ secrets.QUAY_REGISTRY_USER }}
+  QUAY_REGISTRY_PASSWORD: ${{ secrets.QUAY_REGISTRY_PASSWORD }}
+
+jobs:
+  release:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.GIT_SHA }}
+
+      - name: Compute image tag
+        id: vars
+        run: |
+          if [ "${GIT_REF}" = "main" ]; then
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GIT_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Podman
+        uses: redhat-actions/podman-install@v1
+
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@v10
+
+      - name: Log in to ghcr.io
+        uses: redhat-actions/podman-login@v1
+        with:
+          username: ${{ env.GHCR_REGISTRY_USER }}
+          password: ${{ env.GHCR_REGISTRY_PASSWORD }}
+          registry: ${{ env.GHCR_REGISTRY }}
+
+      - name: Log in to Quay.io
+        uses: redhat-actions/podman-login@v1
+        with:
+          username: ${{ env.QUAY_REGISTRY_USER }}
+          password: ${{ env.QUAY_REGISTRY_PASSWORD }}
+          registry: ${{ env.QUAY_REGISTRY }}
+
+      - name: Build
+        run: ./build.py build --tag ${{ steps.vars.outputs.tag }}
+
+      - name: Push to ghcr.io
+        run: ./build.py push --tag ${{ steps.vars.outputs.tag }} ${{ env.GHCR_REGISTRY }}
+
+      - name: Push to Quay.io
+        run: ./build.py push --tag ${{ steps.vars.outputs.tag }} ${{ env.QUAY_REGISTRY }}

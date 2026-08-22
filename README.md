@@ -39,12 +39,29 @@ via `bootc-image-builder` config, never baked into the image.
 ## Layout
 
 ```
-bootc/            host image
+build.py             project tasks; public functions are the subcommands
+.github/workflows/   CI/CD workflows
+bootc/               host image
   Containerfile
-  files/          content copied into the image, mirroring target paths
+  files/             content copied into the image, mirroring target paths
 ```
 
 Flux directories (`clusters/`, `infrastructure/`, `apps/`) arrive with that layer.
+
+## Building
+
+`build.py` is a PEP 723 script, so `uv` supplies the interpreter and there is no
+task runner to install. Subcommands are derived from the script's public
+functions and their signatures, which makes `./build.py --help` the current
+list of subcommands.
+
+```bash
+./build.py build                    # build :latest, lint included
+./build.py push ghcr.io/149segolte  # tag an existing build and push it
+```
+
+The build pins `linux/arm64`, so the result targets the Pi whatever host built
+it. CI tags `latest` on `main` and the short commit SHA elsewhere.
 
 ## Build increments
 

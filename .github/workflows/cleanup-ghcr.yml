@@ -1,0 +1,25 @@
+name: cleanup-ghcr
+
+on:
+  schedule:
+    - cron: "0 3 * * 0" # weekly
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Whether to perform a dry run (default: true)"
+        type: boolean
+        default: true
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    steps:
+      - uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          older-than: 30d
+          keep-n-tagged: 5 # safety net: never prune everything
+          exclude-tags: latest
+          dry-run: ${{ github.event.inputs.dry_run || false }}
