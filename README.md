@@ -117,7 +117,7 @@ included, are overlaid at install time and never baked into the image.
 - [x] scaffold
 - [x] CI build and push to ghcr.io / quay.io
 - [x] install to disk (partitioning + `install` + ESP population)
-- [ ] networking: admin AP + upstream client
+- [x] networking: admin AP + upstream client
 - [ ] firewalld zones
 - [ ] k3s
 - [ ] Flux bootstrap

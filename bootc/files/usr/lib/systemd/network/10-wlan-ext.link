@@ -1,0 +1,5 @@
+[Match]
+Driver=mt7921u
+
+[Link]
+Name=wlan-ext

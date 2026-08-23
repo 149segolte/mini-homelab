@@ -23,6 +23,11 @@
 # secrets are supplied at install time instead of committed.
 
 [vars]
+ADMIN_AP_UUID=FDF59677-8186-47F3-9963-5608741C86D2 # randomly generated
+# ADMIN_AP_PSK= # passed as an argument
+UPSTREAM_WIFI_UUID=AF16958F-AC5B-4D69-830D-FC4E3AD4DDB7 # randomly generated
+# UPSTREAM_WIFI_SSID= # passed as an argument
+# UPSTREAM_WIFI_PSK= # passed as an argument
 
 # --- Raspberry Pi 4 ESP ---
 # From https://docs.fedoraproject.org/en-US/fedora-coreos/provisioning-raspberry-pi4/#_installing_fcos_and_booting_via_u_boot

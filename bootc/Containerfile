@@ -7,6 +7,16 @@ LABEL org.opencontainers.image.title="mini-homelab"
 LABEL org.opencontainers.image.description="Container services host for Raspberry Pi 4B"
 LABEL org.opencontainers.image.source="https://github.com/149segolte/mini-homelab"
 
+# Networking
+RUN dnf -y install \
+      NetworkManager-wifi \
+      wpa_supplicant \
+      brcmfmac-firmware \
+      mt7xxx-firmware \
+ && dnf clean all
+
+COPY files/ /
+
 # validates that the result is a well-formed, bootable bootc image.
 # https://docs.fedoraproject.org/en-US/bootc/building-containers/#_linting
 RUN bootc container lint
