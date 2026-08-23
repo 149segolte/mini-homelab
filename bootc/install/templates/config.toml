@@ -56,3 +56,17 @@ dest = "/boot/efi/overlays"
 mode = "0644"
 owner = "root:root"
 recursive = true
+
+# --- Networking ---
+
+[[entry]]
+source = "networking/admin-ap.nmconnection"
+dest = "/etc/NetworkManager/system-connections/admin-ap.nmconnection"
+mode = "0600"
+owner = "root:root"
+
+[[entry]]
+source = "networking/upstream.nmconnection"
+dest = "/etc/NetworkManager/system-connections/upstream.nmconnection"
+mode = "0600"
+owner = "root:root"
