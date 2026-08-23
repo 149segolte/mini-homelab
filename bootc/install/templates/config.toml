@@ -1,0 +1,53 @@
+# Files overlaid onto the target by overlay.py, after `./build.py install`.
+#
+# Each [[entry]] takes:
+#   source    path under files/, beside this toml. May be nested; a directory
+#             when recursive is set
+#   dest      absolute path as the booted system sees it. Must be under /etc,
+#             /var or /boot. overlay.py maps it onto disk: /boot/*
+#             to the boot partition, /var/* to the stateroot's var, /etc/* into
+#             the ostree deployment
+#   mode      optional, octal string. Defaults to 0600 when omitted
+#   owner     optional, "user:group". Names resolve against the target's own
+#             passwd and group; ids work too
+#   template  optional, default false. When true the source is read as text and
+#             ${...} placeholders are substituted. Leave it off for binaries
+#   recursive optional, default false. Copies a whole directory; mode applies
+#             to the files in it and directories get 0755
+#
+# Written files are labelled with `setfiles` against the target's own policy,
+# so an enforcing host boots with the right contexts. Pass --no-relabel to
+# overlay.py to skip it entirely.
+#
+# Substitutions come from [vars] below, overridden by KEY=VALUE arguments, so
+# secrets are supplied at install time instead of committed.
+
+[vars]
+
+# --- Raspberry Pi 4 ESP ---
+# From https://docs.fedoraproject.org/en-US/fedora-coreos/provisioning-raspberry-pi4/#_installing_fcos_and_booting_via_u_boot
+
+[[entry]]
+source = "rpi/config.txt"
+dest = "/boot/efi/config.txt"
+mode = "0644"
+owner = "root:root"
+
+[[entry]]
+source = "rpi/rpi-u-boot.bin"
+dest = "/boot/efi/rpi-u-boot.bin"
+mode = "0644"
+owner = "root:root"
+
+[[entry]]
+source = "rpi/bootcode.bin"
+dest = "/boot/efi/bootcode.bin"
+mode = "0644"
+owner = "root:root"
+
+[[entry]]
+source = "rpi/overlays"
+dest = "/boot/efi/overlays"
+mode = "0644"
+owner = "root:root"
+recursive = true

@@ -41,6 +41,30 @@ def _run(*cmd: str) -> None:
         sys.exit(err.returncode)
 
 
+def _seeded_var(target: Path) -> Path:
+    """Where bootc seeded /var.
+
+    On an ostree target that is ostree/deploy/<stateroot>/var, shared across
+    deployments — not <target>/var, and not the deployment's own var/, which is
+    an empty mount point. A target without the hierarchy is taken at face value.
+    """
+    candidates = sorted(target.glob("ostree/deploy/*/var"))
+    if not candidates:
+        return target / "var"
+    if len(candidates) > 1:
+        sys.exit(f"Error: {target} holds {len(candidates)} stateroots.")
+    return candidates[0]
+
+
+def _file_contexts(target: Path) -> Path | None:
+    """The target's own file_contexts, from inside the deployment."""
+    pattern = "ostree/deploy/*/deploy/*/etc/selinux/*/contexts/files/file_contexts"
+    for candidate in sorted(target.glob(pattern)):
+        return candidate
+    fallback = target / "etc/selinux/targeted/contexts/files/file_contexts"
+    return fallback if fallback.is_file() else None
+
+
 def _selinux_enabled() -> bool:
     """Whether the installer host has SELinux active."""
     return Path("/sys/fs/selinux/enforce").exists()
@@ -61,8 +85,8 @@ def _parser() -> argparse.ArgumentParser:
     _ = parser.add_argument(
         "--relabel",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="restorecon the copy; skipped when SELinux is off (default: enabled)",
+        default=False,
+        help="relabel the copy with setfiles; rarely needed (default: disabled)",
     )
     return parser
 
@@ -73,7 +97,7 @@ def main() -> None:
     if os.geteuid() != 0:
         sys.exit("Error: must run as root; mounting and copying /var needs it.")
 
-    source = Path(args.mounted_at).resolve() / "var"
+    source = _seeded_var(Path(args.mounted_at).resolve())
     if not source.is_dir():
         sys.exit(f"Error: {source} is not a directory. Is the target root mounted?")
 
@@ -88,33 +112,42 @@ def main() -> None:
     # rmdir at the end rather than a recursive delete: it refuses to run unless
     # the directory is empty, so a failed umount cannot cost us the partition.
     staged = Path(tempfile.mkdtemp(prefix="fix-var-mount-"))
+    # Mounted at <staged>/var, not <staged>, so `setfiles -r <staged>` sees the
+    # paths as /var/... — which is what file_contexts is written against.
+    mountpoint = staged / "var"
+    mountpoint.mkdir()
     try:
-        _run("mount", str(device), str(staged))
+        _run("mount", str(device), str(mountpoint))
         try:
-            if any(staged.iterdir()):
+            if any(mountpoint.iterdir()):
                 print(
                     f"Warning: {device} is not empty; rsync will merge into what is already there.",
                     file=sys.stderr,
                 )
 
-            # -X carries security.selinux across, so the copy arrives labelled.
-            _run("rsync", "-aHAX", f"{source}/", f"{staged}/")
+            # -X carries security.selinux across, so the copy arrives already
+            # labelled. Relabelling is opt-in because it can only make that
+            # worse unless the target's own policy is used.
+            _run("rsync", "-aHAX", f"{source}/", f"{mountpoint}/")
 
             if args.relabel and _selinux_enabled():
-                if shutil.which("restorecon") is None:
+                contexts = _file_contexts(Path(args.mounted_at).resolve())
+                if contexts is None or shutil.which("setfiles") is None:
                     print(
-                        "Warning: SELinux is on but restorecon is missing; keeping the labels rsync copied.",
+                        "Warning: cannot relabel; keeping rsync's labels.",
                         file=sys.stderr,
                     )
                 else:
-                    _run("restorecon", "-R", str(staged))
+                    _run("setfiles", "-r", str(staged), str(contexts), str(mountpoint))
         finally:
-            _run("umount", str(staged))
+            _run("umount", str(mountpoint))
     finally:
-        try:
-            staged.rmdir()
-        except OSError as err:
-            print(f"Warning: leaving {staged} in place ({err}).", file=sys.stderr)
+        # rmdir only, so a failed umount cannot delete through the mount.
+        for leftover in (mountpoint, staged):
+            try:
+                leftover.rmdir()
+            except OSError as err:
+                print(f"Warning: leaving {leftover} in place ({err}).", file=sys.stderr)
 
     print(f"Copied {source}/ onto {device}.")
 

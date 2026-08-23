@@ -15,9 +15,11 @@ import inspect
 import shlex
 import subprocess
 import sys
+from pathlib import Path
 from types import FunctionType
 from typing import Literal
 
+FILE_LOCATION = Path(__file__).parent
 IMAGE = "mini-homelab"
 PLATFORM = "linux/arm64"
 TAG = "latest"
@@ -93,6 +95,25 @@ def install(
     )
 
 
+def add_templates(mounted_at: str, *variables: str) -> None:
+    """Overlay the config.toml entries onto an installed target. Needs root.
+
+    Trailing `KEY=VALUE` arguments become template substitutions, which is how secrets are supplied without committing them.
+    Use `bootc/install/templates/overlay.py --dry-run` to preview without writing.
+    """
+    overlay_script = FILE_LOCATION / "bootc" / "install" / "templates" / "overlay.py"
+
+    if not overlay_script.exists():
+        print(f"Error: {overlay_script} not found", file=sys.stderr)
+        sys.exit(1)
+
+    _run(
+        str(overlay_script),
+        *["--mounted-at", mounted_at],
+        *[arg for variable in variables for arg in ("--var", variable)],
+    )
+
+
 # --- END: Project tasks ---
 
 
@@ -130,7 +151,9 @@ def _parser() -> argparse.ArgumentParser:
     for name, fn in _tasks().items():
         doc = (fn.__doc__ or "").strip()
         subparser = subparsers.add_parser(
-            name, help=doc.splitlines()[0] if doc else None, description=doc
+            name.replace("_", "-"),
+            help=doc.splitlines()[0] if doc else None,
+            description=doc,
         )
         for param in inspect.signature(fn).parameters.values():
             if param.kind is inspect.Parameter.VAR_POSITIONAL:
