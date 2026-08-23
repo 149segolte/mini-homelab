@@ -10,3 +10,4 @@ output/
 
 # Python related
 .ruff_cache
+__pycache__

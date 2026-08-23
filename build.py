@@ -52,6 +52,47 @@ def push(registry: str, tag: str = TAG) -> None:
     _run("podman", "push", ref)
 
 
+def install(
+    mounted_at: str,
+    root_uuid: str,
+    boot_uuid: str,
+    target_registry: str,
+    tag: str = TAG,
+    *kargs: str,
+) -> None:
+    """Install the image onto an already-mounted filesystem. Needs root (privileged container).
+
+    `mounted_at` is the host path the target root is mounted at. Disk layout and partitions are assumed to be already set up. Refer to README.md for details.
+    `target_registry` becomes the ref the installed host pulls upgrades from.
+    Any trailing arguments are passed through as `--karg`.
+    """
+    # bootc records the target ref and `bootc upgrade` pulls from it later, so
+    # an empty one would leave a host that cannot pull.
+    if not target_registry:
+        print(
+            "Error: target_registry must name a registry the installed host can pull from.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    target = f"{target_registry}/{IMAGE}:{tag}"
+
+    _run(
+        *["podman", "run", "--rm", "--privileged", "--pid=host", "--ipc=host"],
+        *["--security-opt", "label=type:unconfined_t"],
+        *["-v", "/dev:/dev"],
+        *["-v", "/var/lib/containers:/var/lib/containers"],
+        *["-v", f"{mounted_at}:{mounted_at}:rslave"],
+        f"{IMAGE}:{tag}",
+        *["bootc", "install", "to-filesystem"],
+        *[f"--karg=root=UUID={root_uuid}"],
+        *[f"--karg={arg}" for arg in kargs],
+        *["--boot-mount-spec", f"UUID={boot_uuid}"],
+        *["--target-imgref", target],
+        *[mounted_at],
+    )
+
+
 # --- END: Project tasks ---
 
 
@@ -92,7 +133,11 @@ def _parser() -> argparse.ArgumentParser:
             name, help=doc.splitlines()[0] if doc else None, description=doc
         )
         for param in inspect.signature(fn).parameters.values():
-            if param.default is inspect.Parameter.empty:
+            if param.kind is inspect.Parameter.VAR_POSITIONAL:
+                _ = subparser.add_argument(
+                    param.name, nargs="*", help=f"zero or more {param.name}"
+                )
+            elif param.default is inspect.Parameter.empty:
                 _ = subparser.add_argument(param.name)
             else:
                 _ = subparser.add_argument(
@@ -114,8 +159,20 @@ def _main() -> None:
         parser.print_help()
         return
 
-    kwargs = {k: v for k, v in vars(args).items() if k not in ("task", "_fn")}
-    fn(**kwargs)
+    # A VAR_POSITIONAL parameter cannot be passed by keyword, so bind in
+    # declaration order and let the signature decide what goes where.
+    values = vars(args)
+    positional: list[str] = []
+    kwargs: dict[str, object] = {}
+    for param in inspect.signature(fn).parameters.values():
+        if param.kind is inspect.Parameter.VAR_POSITIONAL:
+            positional.extend(values.get(param.name) or [])
+        elif param.kind is inspect.Parameter.KEYWORD_ONLY:
+            kwargs[param.name] = values[param.name]
+        else:
+            positional.append(values[param.name])
+
+    fn(*positional, **kwargs)
 
 
 if __name__ == "__main__":
