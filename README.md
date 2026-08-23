@@ -118,7 +118,7 @@ included, are overlaid at install time and never baked into the image.
 - [x] CI build and push to ghcr.io / quay.io
 - [x] install to disk (partitioning + `install` + ESP population)
 - [x] networking: admin AP + upstream client
-- [ ] firewalld zones
+- [x] firewalld zones
 - [ ] k3s
 - [ ] Flux bootstrap
 - [ ] workloads: reverse proxy, TLS

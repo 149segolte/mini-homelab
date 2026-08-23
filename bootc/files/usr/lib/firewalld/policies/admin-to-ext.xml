@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<policy target="ACCEPT">
+  <short>admin-to-ext</short>
+  <ingress-zone name="admin" />
+  <egress-zone name="ext" />
+</policy>

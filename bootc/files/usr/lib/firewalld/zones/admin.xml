@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<zone>
+  <short>admin</short>
+  <description>Internal AP. Administrative access only.</description>
+  <service name="ssh" />
+  <service name="dhcp" />
+  <service name="dns" />
+  <port protocol="tcp" port="6443" />
+</zone>

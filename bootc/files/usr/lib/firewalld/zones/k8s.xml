@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<zone target="ACCEPT">
+  <short>k8s</short>
+  <description>Cluster pod and service networks.</description>
+  <source address="10.42.0.0/16" />
+  <source address="10.43.0.0/16" />
+</zone>

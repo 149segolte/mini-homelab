@@ -15,6 +15,10 @@ RUN dnf -y install \
       mt7xxx-firmware \
  && dnf clean all
 
+ RUN dnf -y install firewalld && dnf clean all \
+  && systemctl enable firewalld \
+  && sed -i 's/^DefaultZone=.*/DefaultZone=drop/' /etc/firewalld/firewalld.conf
+
 COPY files/ /
 
 # validates that the result is a well-formed, bootable bootc image.
