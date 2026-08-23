@@ -122,3 +122,8 @@ included, are overlaid at install time and never baked into the image.
 - [ ] k3s
 - [ ] Flux bootstrap
 - [ ] workloads: reverse proxy, TLS
+
+## License
+
+MPL-2.0, see [LICENSE](LICENSE). SPDX headers are on the scripts and the
+Containerfile only; everything else here is covered by that file.
