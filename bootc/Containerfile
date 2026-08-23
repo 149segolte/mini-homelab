@@ -7,17 +7,19 @@ LABEL org.opencontainers.image.title="mini-homelab"
 LABEL org.opencontainers.image.description="Container services host for Raspberry Pi 4B"
 LABEL org.opencontainers.image.source="https://github.com/149segolte/mini-homelab"
 
-# Networking
+# ostree recreates /var at boot from tmpfiles.d and /run and /tmp are tmpfs, so
+# anything dnf leaves there is just a `bootc container lint` warning.
 RUN dnf -y install \
       NetworkManager-wifi \
       wpa_supplicant \
       brcmfmac-firmware \
       mt7xxx-firmware \
- && dnf clean all
+      firewalld \
+ && dnf clean all \
+ && rm -rf /var/cache/* /var/lib/dnf /var/log/* /run/* /tmp/*
 
- RUN dnf -y install firewalld && dnf clean all \
-  && systemctl enable firewalld \
-  && sed -i 's/^DefaultZone=.*/DefaultZone=drop/' /etc/firewalld/firewalld.conf
+RUN systemctl enable firewalld \
+ && sed -i 's/^DefaultZone=.*/DefaultZone=drop/' /etc/firewalld/firewalld.conf
 
 COPY files/ /
 
