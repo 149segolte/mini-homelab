@@ -1,18 +1,14 @@
 # mini-homelab
 
-Declarative container services host on a Raspberry Pi 4B (8GB).
+Declarative container services host on a Raspberry Pi 4B (8 GB).
 
-Two layers, split along how often each changes:
+Two layers, split by how often they change:
 
-- **Host** — a bootc image. Rebuilt in CI, applied deliberately with
-  `bootc upgrade` + reboot. Changes rarely.
-- **Workloads** — k3s driven by Flux from this same repo. Changes constantly,
-  no reboot.
+- **Host** — a bootc image, built in CI. Applied with `bootc upgrade` + reboot.
+- **Workloads** — k3s driven by Flux from this repo. No reboot.
 
-Removing something from either layer removes it from the running system. That is
-the whole point of the design; nothing is managed imperatively.
-
-## Topology
+Removing something from either layer removes it from the running system. Nothing
+is managed imperatively.
 
 ```
 upstream wifi (MT7921AU, USB)      firewalld zone: ext, DROP except 80/443
@@ -23,38 +19,87 @@ internal 2.4GHz AP (brcmfmac)      firewalld zone: admin, 172.19.149.0/24
         `-- SSH, kubectl (6443). k3s --node-ip pinned here.
 ```
 
-### Disk partitioning
+## Layout
 
-The image does not partition anything. Lay the target disk out first, mount it,
-then pass the resulting UUIDs to the `install` task. Any layout bootc supports
-will work — this is the one this host is built around:
+```
+build.py                project tasks; public functions are the subcommands
+.github/workflows/      build, publish, registry cleanup
+bootc/
+  Containerfile
+  files/                copied into the image, mirroring target paths
+  install/              run against a mounted target, not the image
+    fix-var-mount.py
+    templates/          overlay.py, config.toml, files/
+```
 
-| #   | Mount   | Size          | Filesystem | Why                                                             |
-| --- | ------- | ------------- | ---------- | --------------------------------------------------------------- |
-| 1   | ESP     | 1 GiB         | FAT32      | Pi firmware and U-Boot; FAT32 is mandatory                      |
-| 2   | `/boot` | 2 GiB         | ext4       | Kernel and initramfs per deployment, managed directly by ostree |
-| 3   | `/`     | 8 GiB or more | ext4       | Image deployments; two are kept, so allow twice one image       |
-| 4   | `/var`  | Remainder     | ext4       | State bootc never manages: container storage, k3s data, logs    |
+Flux directories (`clusters/`, `infrastructure/`, `apps/`) arrive with that layer.
 
-Mount the root partition at whatever path you pass as `mounted_at`, with
-`/boot` beneath it and the ESP at `boot/efi`, which is where bootc looks for
-it. `install` takes those two UUIDs, the registry the host should track,
-and any extra kernel arguments.
+## Tasks
 
-`/var` needs a second step, because `bootc install to-filesystem` will not set
-up a separate one ([bootc#997](https://github.com/bootc-dev/bootc/issues/997)).
-Install with the partition unmounted, then seed it from the installed root:
+`build.py` is a PEP 723 script, so `uv` supplies the interpreter and there is no
+task runner to install. Subcommands are derived from its public functions —
+`./build.py --help` is always the current list.
 
 ```bash
+./build.py build                    # build :latest, bootc lint included
+./build.py push quay.io/149segolte  # tag and push an existing build
+```
+
+Builds pin `linux/arm64`. CI tags `latest` on `main` and the short commit SHA
+elsewhere, publishing one build to both ghcr.io and quay.io so either can serve
+`bootc upgrade`.
+
+## Installing to disk
+
+Partition and mount the target first; nothing here partitions for you.
+
+| #   | Mount   | Size          | FS    | Why                                                             |
+| --- | ------- | ------------- | ----- | --------------------------------------------------------------- |
+| 1   | ESP     | 1 GiB         | FAT32 | Pi firmware and U-Boot; FAT32 is mandatory                      |
+| 2   | `/boot` | 2 GiB         | ext4  | Kernel and initramfs per deployment, managed directly by ostree |
+| 3   | `/`     | 8 GiB or more | ext4  | Image deployments; two are kept, so allow twice one image       |
+| 4   | `/var`  | Remainder     | ext4  | State bootc never manages: container storage, k3s data, logs    |
+
+Mount root at `mounted_at`, `/boot` beneath it, the ESP at `boot/efi`. Leave the
+`/var` partition unmounted — `bootc install to-filesystem` errors on one mounted
+there ([bootc#997](https://github.com/bootc-dev/bootc/issues/997)), so it gets
+seeded afterwards instead.
+
+```bash
+sudo ./build.py install /mnt "$ROOT_UUID" "$BOOT_UUID" quay.io/149segolte \
+  "systemd.mount-extra=UUID=$VAR_UUID:/var:ext4"
+sudo ./build.py add-templates /mnt WIFI_PSK=...
 sudo bootc/install/fix-var-mount.py /mnt /dev/sda4
 ```
 
-That mounts the partition on a temporary directory, copies `/mnt/var/` across
-with hard links, ACLs and SELinux labels intact, relabels the copy unless you
-pass `--no-relabel`, and unmounts. The installed system picks the partition up
-from a `systemd.mount-extra` karg.
+The order matters: `add-templates` runs in the middle so anything it writes
+under `/var` is carried onto the real partition by the last step. `install`'s
+registry argument becomes `--target-imgref`, which decides where the Pi pulls
+upgrades from; trailing arguments become kernel arguments. Each script's
+`--help` covers the rest.
 
-## Key decisions
+### Overlaid files
+
+`add-templates` copies the `config.toml` entries onto the target — a source
+under `templates/files/`, a destination under `/etc`, `/var` or `/boot`, and
+optional `mode` and `owner`. Owner names resolve against the target's own
+`passwd` and `group`, and written files are labelled with `setfiles` against the
+target's policy — both because the installer host's accounts and policy are not
+the image's. Anything that is not machine-local belongs in `bootc/files/`
+instead, where the image build labels it.
+
+Entries marked `template = true` have `${...}` substituted from `[vars]`,
+overridden by trailing `KEY=VALUE` arguments, so secrets stay out of git.
+`recursive = true` copies a whole directory instead of one file.
+
+The Pi's own ESP files live here, because bootc writes the EFI bootloader but
+not the Broadcom firmware or U-Boot, and never revisits the ESP afterwards.
+Generated using [the Fedora CoreOS Raspberry Pi 4 provisioning guide](https://docs.fedoraproject.org/en-US/fedora-coreos/provisioning-raspberry-pi4/#_installing_fcos_and_booting_via_u_boot).
+`files/rpi/` is gitignored and must be populated by hand before running `add-templates`.
+
+`add-templates` fails before writing anything if a source is missing.
+
+## Decisions
 
 | Decision                           | Why                                                                 |
 | ---------------------------------- | ------------------------------------------------------------------- |
@@ -63,54 +108,15 @@ from a `systemd.mount-extra` karg.
 | `--node-ip` on the admin address   | Survives upstream wifi loss without reporting an unroutable address |
 | `bootc upgrade` without `--apply`  | Stages the image automatically; reboot stays deliberate             |
 
-Config goes in `/usr` wherever possible (versioned with the image, cannot drift).
-`/etc` only for genuinely machine-local config. SSH keys are injected at install time
-via `bootc-image-builder` config, never baked into the image.
+Config lives in `/usr` wherever possible — versioned with the image, unable to
+drift. `/etc` only for genuinely machine-local state. Secrets, SSH keys
+included, are overlaid at install time and never baked into the image.
 
-## Layout
+## Status
 
-```
-build.py             project tasks; public functions are the subcommands
-.github/workflows/   CI/CD workflows
-bootc/               host image
-  Containerfile
-  files/             content copied into the image, mirroring target paths
-  install/           scripts run against a target at install time
-```
-
-Flux directories (`clusters/`, `infrastructure/`, `apps/`) arrive with that layer.
-
-## Building
-
-`build.py` is a PEP 723 script, so `uv` supplies the interpreter and there is no
-task runner to install. Subcommands are derived from the script's public
-functions and their signatures, which makes `./build.py --help` the current
-list of subcommands.
-
-```bash
-./build.py build                    # build :latest, lint included
-./build.py push quay.io/149segolte  # tag an existing build and push it
-
-# On the installer host, as root, with the target filesystems mounted.
-# Trailing arguments become kernel arguments.
-sudo ./build.py install /mnt "$ROOT_UUID" "$BOOT_UUID" quay.io/149segolte \
-  "systemd.mount-extra=UUID=$VAR_UUID:/var:ext4"
-```
-
-`install` wraps `bootc install to-filesystem` in a privileged container. The
-registry argument is recorded as `--target-imgref`, which is what the installed
-host pulls on later `bootc upgrade` runs, so it chooses which registry the Pi
-actually tracks. Everything after it is passed through as `--karg` — including
-the `systemd.mount-extra` that mounts `/var`.
-
-The build pins `linux/arm64`, so the result targets the Pi whatever host built
-it. CI tags `latest` on `main` and the short commit SHA elsewhere.
-
-## Build increments
-
-- [x] bare scaffold
-- [x] CI build and push to ghcr.io/quay.io
-- [ ] install to disk (partitioning + `install` task + ESP population)
+- [x] scaffold
+- [x] CI build and push to ghcr.io / quay.io
+- [x] install to disk (partitioning + `install` + ESP population)
 - [ ] networking: admin AP + upstream client
 - [ ] firewalld zones
 - [ ] k3s
