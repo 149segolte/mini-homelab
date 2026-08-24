@@ -7,6 +7,8 @@ LABEL org.opencontainers.image.title="mini-homelab"
 LABEL org.opencontainers.image.description="Container services host for Raspberry Pi 4B"
 LABEL org.opencontainers.image.source="https://github.com/149segolte/mini-homelab"
 
+ARG K3S_VERSION=v1.36.3+k3s1
+
 # ostree recreates /var at boot from tmpfiles.d and /run and /tmp are tmpfs, so
 # anything dnf leaves there is just a `bootc container lint` warning.
 RUN dnf -y install \
@@ -15,13 +17,33 @@ RUN dnf -y install \
       brcmfmac-firmware \
       mt7xxx-firmware \
       firewalld \
- && dnf clean all \
- && rm -rf /var/cache/* /var/lib/dnf /var/log/* /run/* /tmp/*
+ && dnf clean all
 
 RUN systemctl enable firewalld \
  && sed -i 's/^DefaultZone=.*/DefaultZone=drop/' /etc/firewalld/firewalld.conf
 
+RUN curl -fsSL -o /usr/bin/k3s \
+    "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION//+/%2B}/k3s-arm64" \
+&& curl -fsSL -o /tmp/sha256sum-arm64.txt \
+    "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION//+/%2B}/sha256sum-arm64.txt" \
+&& grep ' k3s-arm64$' /tmp/sha256sum-arm64.txt | awk '{print $1"  /usr/bin/k3s"}' | sha256sum -c - \
+&& chmod 0755 /usr/bin/k3s && rm -f /tmp/sha256sum-arm64.txt \
+&& for c in kubectl crictl ctr; do ln -sf k3s /usr/bin/$c; done
+
+RUN printf '%s\n' \
+  '[rancher-k3s-common-stable]' \
+  'name=Rancher K3s Common (stable)' \
+  'baseurl=https://rpm.rancher.io/k3s/stable/common/coreos/noarch' \
+  'enabled=1' 'gpgcheck=1' 'gpgkey=https://rpm.rancher.io/public.key' \
+  > /etc/yum.repos.d/rancher-k3s-common.repo \
+ && dnf -y install k3s-selinux \
+ && rm -f /etc/yum.repos.d/rancher-k3s-common.repo \
+ && dnf clean all \
+ && rm -rf /var/cache/* /var/lib/dnf /var/log/* /run/* /tmp/*
+
 COPY files/ /
+
+RUN systemctl enable k3s.service
 
 # validates that the result is a well-formed, bootable bootc image.
 # https://docs.fedoraproject.org/en-US/bootc/building-containers/#_linting
