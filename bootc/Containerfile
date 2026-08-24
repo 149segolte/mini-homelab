@@ -17,7 +17,8 @@ RUN dnf -y install \
       brcmfmac-firmware \
       mt7xxx-firmware \
       firewalld \
- && dnf clean all
+ && dnf clean all \
+ && rm -rf /var/cache/* /var/lib/dnf /var/log/* /run/dnf /tmp/*
 
 RUN systemctl enable firewalld \
  && sed -i 's/^DefaultZone=.*/DefaultZone=drop/' /etc/firewalld/firewalld.conf
@@ -39,7 +40,7 @@ RUN printf '%s\n' \
  && dnf -y install k3s-selinux \
  && rm -f /etc/yum.repos.d/rancher-k3s-common.repo \
  && dnf clean all \
- && rm -rf /var/cache/* /var/lib/dnf /var/log/* /run/* /tmp/*
+ && rm -rf /var/cache/* /var/lib/dnf /var/log/* /run/dnf /tmp/*
 
 COPY files/ /
 
