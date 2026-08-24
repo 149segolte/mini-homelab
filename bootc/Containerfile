@@ -43,7 +43,7 @@ RUN printf '%s\n' \
 
 COPY files/ /
 
-RUN systemctl enable k3s.service
+RUN systemctl enable k3s.service bootc-fetch-apply-updates.timer
 
 # validates that the result is a well-formed, bootable bootc image.
 # https://docs.fedoraproject.org/en-US/bootc/building-containers/#_linting
