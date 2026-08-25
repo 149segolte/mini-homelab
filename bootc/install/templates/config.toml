@@ -83,9 +83,11 @@ source = "networking/admin-ap.nmconnection"
 dest = "/etc/NetworkManager/system-connections/admin-ap.nmconnection"
 mode = "0600"
 owner = "root:root"
+template = true
 
 [[entry]]
 source = "networking/upstream.nmconnection"
 dest = "/etc/NetworkManager/system-connections/upstream.nmconnection"
 mode = "0600"
 owner = "root:root"
+template = true
