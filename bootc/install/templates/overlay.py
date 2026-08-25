@@ -56,12 +56,14 @@ def _warn(message: str) -> None:
     print(f"Warning: {message}", file=sys.stderr)
 
 
-def _run(*cmd: str) -> None:
+def _run(*cmd: str, fatal: bool = True) -> None:
     print("  [CMD]>", shlex.join(cmd), file=sys.stderr)
     try:
         _ = subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError:
-        _fail(f"failed to run `{shlex.join(cmd)}`")
+        if fatal:
+            _fail(f"failed to run `{shlex.join(cmd)}`")
+        _warn(f"`{cmd[0]}` failed; continuing.")
 
 
 def _deployment_root(target: Path) -> Path:
@@ -198,6 +200,23 @@ def _render(plan: Plan, variables: dict[str, str]) -> bytes:
         _fail(f"{plan.source}: bad template syntax ({err})")
 
 
+def _readonly_mounts(plans: list[Plan], target: Path) -> list[Path]:
+    """Mounts these plans need that are not writable.
+
+    `bootc install` finalises root and boot read-only, so this is the normal
+    state right after one.
+    """
+    mounts: set[Path] = set()
+    for plan in plans:
+        node = next(p for p in [plan.dest, *plan.dest.parents] if p.exists())
+        if os.access(node, os.W_OK):
+            continue
+        while node != target and node != node.parent and not os.path.ismount(node):
+            node = node.parent
+        mounts.add(node)
+    return sorted(mounts)
+
+
 def _put(dest: Path, content: bytes, mode: int, owner: tuple[int, int] | None) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     # O_CREAT's mode applies at creation, unlike a later chmod, so a secret is
@@ -212,8 +231,7 @@ def _put(dest: Path, content: bytes, mode: int, owner: tuple[int, int] | None) -
 
 def _write(plan: Plan, variables: dict[str, str]) -> None:
     if not plan.recursive:
-        _put(plan.dest, _render(plan, variables), plan.mode, plan.owner)
-        return
+        return _put(plan.dest, _render(plan, variables), plan.mode, plan.owner)
 
     # `mode` is for the files; directories need their execute bit to be usable.
     for source in [plan.source, *plan.contents]:
@@ -221,14 +239,18 @@ def _write(plan: Plan, variables: dict[str, str]) -> None:
         if source.is_dir():
             dest.mkdir(parents=True, exist_ok=True)
             os.chmod(dest, DEFAULT_DIR_MODE)
-            if plan.owner is not None:
+            if plan.owner:
                 os.chown(dest, *plan.owner)
         else:
             _put(dest, source.read_bytes(), plan.mode, plan.owner)
 
 
-def _file_contexts(deployment: Path) -> Path | None:
-    """The target's own file_contexts, per its own SELINUXTYPE."""
+def _policy_files(deployment: Path) -> tuple[Path, Path] | None:
+    """The target's file_contexts and compiled policy, or None if absent.
+
+    setfiles validates every context in the spec against a policy, and the
+    running kernel's lacks types only the image defines — k3s_data_t, say.
+    """
     policy = "targeted"
     config = deployment / "etc" / "selinux" / "config"
     if config.is_file():
@@ -236,8 +258,14 @@ def _file_contexts(deployment: Path) -> Path | None:
             key, sep, value = line.strip().partition("=")
             if key == "SELINUXTYPE" and sep and value:
                 policy = value
-    contexts = deployment / f"etc/selinux/{policy}/contexts/files/file_contexts"
-    return contexts if contexts.is_file() else None
+
+    base = deployment / "etc" / "selinux" / policy
+    contexts = base / "contexts" / "files" / "file_contexts"
+    versions = sorted(
+        base.glob("policy/policy.*"),
+        key=lambda path: int(digits) if (digits := path.suffix[1:]).isdigit() else -1,
+    )
+    return (contexts, versions[-1]) if contexts.is_file() and versions else None
 
 
 def _relabel(plans: list[Plan], deployment: Path, dry_run: bool) -> None:
@@ -246,11 +274,12 @@ def _relabel(plans: list[Plan], deployment: Path, dry_run: bool) -> None:
     `-r` strips the on-disk prefix so paths match file_contexts as the booted
     system sees them; restorecon would match the ostree paths and mislabel.
     """
-    contexts = _file_contexts(deployment)
-    if contexts is None:
-        return _warn("no file_contexts in the target; leaving labels alone.")
+    policy = _policy_files(deployment)
+    if policy is None:
+        return _warn("no SELinux policy in the target; leaving labels alone.")
     if shutil.which("setfiles") is None:
         return _warn("setfiles not on PATH; leaving labels alone.")
+    contexts, binary = policy
 
     roots = {plan.root for plan in plans}
     print("Labelling:")
@@ -259,7 +288,12 @@ def _relabel(plans: list[Plan], deployment: Path, dry_run: bool) -> None:
         if dry_run:
             print(f"  [dry-run] setfiles -r {root} ({len(paths)} path(s))")
         else:
-            _run("setfiles", "-r", str(root), str(contexts), *paths)
+            # -c validates against the target's policy, not the running kernel's.
+            _run(
+                *["setfiles", "-c", str(binary), "-r", str(root)],
+                *[str(contexts), *paths],
+                fatal=False,
+            )
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -325,6 +359,11 @@ def main() -> None:
 
     # Validate everything first, so a bad last entry cannot half-overlay.
     plans = [_plan(entry, target, deployment) for entry in entries]
+
+    if not args.dry_run and (readonly := _readonly_mounts(plans, target)):
+        for mount in readonly:
+            print(f"  {mount}", file=sys.stderr)
+        _fail(f"read-only; try `mount -o remount,rw {readonly[0]}`")
 
     print(f"Overlaying {len(plans)} into {target}:")
     for plan in plans:
