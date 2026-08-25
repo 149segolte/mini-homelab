@@ -28,6 +28,8 @@ ADMIN_AP_UUID="FDF59677-8186-47F3-9963-5608741C86D2" # randomly generated
 UPSTREAM_WIFI_UUID="AF16958F-AC5B-4D69-830D-FC4E3AD4DDB7" # randomly generated
 # UPSTREAM_WIFI_SSID= # passed as an argument
 # UPSTREAM_WIFI_PSK= # passed as an argument
+HOSTNAME="mini-homelab"
+TIMEZONE="America/New_York" # override to local timezone
 ADMIN_USER="one49segolte"
 ADMIN_UID="1000"
 # ADMIN_SSH_KEY= # passed as an argument
@@ -41,6 +43,22 @@ dest = "/boot/efi"
 mode = "0644"
 owner = "root:root"
 recursive = true
+
+# --- Machine basics ---
+
+[[entry]]
+source = "system/hostname"
+dest = "/etc/hostname"
+mode = "0644"
+owner = "root:root"
+template = true
+
+[[entry]]
+source = "system/tmpfiles.conf"
+dest = "/etc/tmpfiles.d/10-system.conf"
+mode = "0644"
+owner = "root:root"
+template = true
 
 # --- Users ---
 
