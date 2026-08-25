@@ -36,12 +36,9 @@ def build(tag: str = TAG, cache_registry: str = "") -> None:
     """
     cache = f"{cache_registry}/{IMAGE}-cache" if cache_registry else None
     _run(
-        "podman",
-        "build",
-        "--platform",
-        PLATFORM,
-        "-t",
-        f"{IMAGE}:{tag}",
+        *["podman", "build"],
+        *["--platform", PLATFORM],
+        *["-t", f"{IMAGE}:{tag}"],
         *(["--layers", "--cache-from", cache, "--cache-to", cache] if cache else []),
         "bootc/",
     )
@@ -78,20 +75,21 @@ def install(
         sys.exit(1)
 
     target = f"{target_registry}/{IMAGE}:{tag}"
+    root_mount = "/target"
 
     _run(
         *["podman", "run", "--rm", "--privileged", "--pid=host", "--ipc=host"],
         *["--security-opt", "label=type:unconfined_t"],
         *["-v", "/dev:/dev"],
         *["-v", "/var/lib/containers:/var/lib/containers"],
-        *["-v", f"{mounted_at}:{mounted_at}:rslave"],
-        f"{IMAGE}:{tag}",
+        *["-v", f"{mounted_at}:{root_mount}:rslave"],
+        f"localhost/{IMAGE}:{tag}",
         *["bootc", "install", "to-filesystem"],
         *[f"--karg=root=UUID={root_uuid}"],
         *[f"--karg={arg}" for arg in kargs],
         *["--boot-mount-spec", f"UUID={boot_uuid}"],
         *["--target-imgref", target],
-        *[mounted_at],
+        root_mount,
     )
 
 

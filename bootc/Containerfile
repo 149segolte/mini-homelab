@@ -17,6 +17,7 @@ RUN dnf -y install \
       brcmfmac-firmware \
       mt7xxx-firmware \
       firewalld \
+      dnsmasq \
  && dnf clean all \
  && rm -rf /var/cache/* /var/lib/dnf /var/log/* /run/dnf /tmp/*
 

@@ -23,9 +23,9 @@
 # secrets are supplied at install time instead of committed.
 
 [vars]
-ADMIN_AP_UUID=FDF59677-8186-47F3-9963-5608741C86D2 # randomly generated
+ADMIN_AP_UUID="FDF59677-8186-47F3-9963-5608741C86D2" # randomly generated
 # ADMIN_AP_PSK= # passed as an argument
-UPSTREAM_WIFI_UUID=AF16958F-AC5B-4D69-830D-FC4E3AD4DDB7 # randomly generated
+UPSTREAM_WIFI_UUID="AF16958F-AC5B-4D69-830D-FC4E3AD4DDB7" # randomly generated
 # UPSTREAM_WIFI_SSID= # passed as an argument
 # UPSTREAM_WIFI_PSK= # passed as an argument
 
@@ -33,26 +33,8 @@ UPSTREAM_WIFI_UUID=AF16958F-AC5B-4D69-830D-FC4E3AD4DDB7 # randomly generated
 # From https://docs.fedoraproject.org/en-US/fedora-coreos/provisioning-raspberry-pi4/#_installing_fcos_and_booting_via_u_boot
 
 [[entry]]
-source = "rpi/config.txt"
-dest = "/boot/efi/config.txt"
-mode = "0644"
-owner = "root:root"
-
-[[entry]]
-source = "rpi/rpi-u-boot.bin"
-dest = "/boot/efi/rpi-u-boot.bin"
-mode = "0644"
-owner = "root:root"
-
-[[entry]]
-source = "rpi/bootcode.bin"
-dest = "/boot/efi/bootcode.bin"
-mode = "0644"
-owner = "root:root"
-
-[[entry]]
-source = "rpi/overlays"
-dest = "/boot/efi/overlays"
+source = "rpi"
+dest = "/boot/efi"
 mode = "0644"
 owner = "root:root"
 recursive = true
