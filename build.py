@@ -111,8 +111,23 @@ def add_templates(mounted_at: str, *variables: str) -> None:
         *[arg for variable in variables for arg in ("--var", variable)],
     )
 
+    # Update /usr mtime for sysusers to trigger
+    root = _deployment_root(Path(mounted_at))
+    _run("touch", str(root / "usr"))
+
 
 # --- END: Project tasks ---
+
+
+def _deployment_root(target: Path) -> Path:
+    """The deployment holding the target's /etc, or the target if not ostree."""
+    found = sorted(
+        d for d in target.glob("ostree/deploy/*/deploy/*") if (d / "etc").is_dir()
+    )
+    if len(found) > 1:
+        print(f"Error: multiple deployments found: {found}", file=sys.stderr)
+        sys.exit(1)
+    return found[0] if found else target
 
 
 def _run(*cmd: str, quiet: Literal["off", "echo", "output", "full"] = "off") -> None:
