@@ -1,4 +1,3 @@
 node-ip: 172.19.149.1
 kubelet-arg:
-  - shutdownGracePeriod=30s
-  - shutdownGracePeriodCriticalPods=10s
+  - config=/etc/rancher/k3s/kubelet.config

@@ -2,7 +2,8 @@
 Description=Lightweight Kubernetes
 Documentation=https://k3s.io
 Wants=network-online.target
-After=network-online.target firewalld.service
+# time-sync.target because the Pi has no RTC
+After=network-online.target firewalld.service time-sync.target
 RequiresMountsFor=/var/lib/rancher
 
 [Install]
