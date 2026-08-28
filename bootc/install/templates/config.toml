@@ -32,7 +32,7 @@ HOSTNAME="mini-homelab"
 TIMEZONE="America/New_York" # override to local timezone
 ADMIN_USER="one49segolte"
 ADMIN_UID="1000"
-# ADMIN_SSH_KEY= # passed as an argument
+# ADMIN_SSH_KEY= # passed as an argument; base64-encoded
 
 # --- Raspberry Pi 4 ESP ---
 # From https://docs.fedoraproject.org/en-US/fedora-coreos/provisioning-raspberry-pi4/#_installing_fcos_and_booting_via_u_boot
