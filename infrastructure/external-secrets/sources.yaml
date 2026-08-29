@@ -1,0 +1,26 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: external-secrets
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://github.com/external-secrets/external-secrets
+  ref:
+    tag: v2.10.0
+  ignore: |
+    /*
+    !/config
+    /config/*
+    !/config/crds
+    /config/crds/*
+    !/config/crds/bases
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: external-secrets
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://charts.external-secrets.io

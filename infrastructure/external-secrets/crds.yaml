@@ -1,14 +1,13 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
-  name: infrastructure
+  name: external-secrets-crds
   namespace: flux-system
 spec:
   interval: 10m
-  timeout: 10m
-  path: ./infrastructure
+  path: ./config/crds/bases
   prune: true
   wait: true
   sourceRef:
     kind: GitRepository
-    name: flux-system
+    name: external-secrets
