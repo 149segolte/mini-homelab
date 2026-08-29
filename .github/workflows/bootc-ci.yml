@@ -62,18 +62,3 @@ jobs:
       # A passing build is also a passing `bootc container lint`.
       - name: Build
         run: ./build.py build --tag ${{ steps.vars.outputs.tag }} --cache-registry ${{ env.GHCR_REGISTRY }}
-
-      # # TODO: Might wanna look into bcvk for testing
-      #
-      # - name: Install bcvk
-      #   run: |
-      #     # install per bcvk's install instructions (cargo install or release binary)
-      #     curl -sSL https://github.com/bootc-dev/bcvk/releases/latest/download/bcvk-x86_64-linux -o /usr/local/bin/bcvk
-      #     chmod +x /usr/local/bin/bcvk
-
-      # - name: Boot image and run smoke test over SSH
-      #   run: |
-      #     bcvk ephemeral run-ssh localhost/my-bootc:test -- bash -c '
-      #       systemctl is-system-running --wait &&
-      #       rpm -q podman &&
-      #       systemctl is-active my-custom-service
