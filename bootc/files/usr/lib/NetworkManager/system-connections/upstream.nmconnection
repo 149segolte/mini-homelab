@@ -1,0 +1,12 @@
+[connection]
+id=upstream
+type=ethernet
+interface-name=eth-ext
+autoconnect=true
+zone=ext
+
+[ipv4]
+method=auto
+
+[ipv6]
+method=auto

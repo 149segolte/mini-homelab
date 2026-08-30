@@ -2,4 +2,4 @@
 Driver=mt7921u
 
 [Link]
-Name=wlan-ext
+Name=wlan-usb

@@ -11,7 +11,7 @@ Removing something from either layer removes it from the running system. Nothing
 is managed imperatively.
 
 ```
-upstream wifi (MT7921AU, USB)      firewalld zone: ext, DROP except 80/443
+upstream ethernet (onboard)        firewalld zone: ext, DROP except 80/443
         |
    reverse proxy  -->  k3s workloads (pods on 10.42/16, svc on 10.43/16)
         |
@@ -110,7 +110,7 @@ Generated using [the Fedora CoreOS Raspberry Pi 4 provisioning guide](https://do
 | ---------------------------------- | ------------------------------------------------------------------- |
 | U-Boot / DeviceTree boot, not EDK2 | EDK2 puts onboard wifi out of scope                                 |
 | firewalld, not raw nftables        | Zone model, and k3s documents a supported firewalld configuration   |
-| `--node-ip` on the admin address   | Survives upstream wifi loss without reporting an unroutable address |
+| `--node-ip` on the admin address   | Survives upstream loss without reporting an unroutable address      |
 | `bootc upgrade` without `--apply`  | Stages the image automatically; reboot stays deliberate             |
 
 Config lives in `/usr` wherever possible — versioned with the image, unable to
