@@ -25,6 +25,8 @@
 [vars]
 ADMIN_AP_UUID="FDF59677-8186-47F3-9963-5608741C86D2" # randomly generated
 # ADMIN_AP_PSK= # passed as an argument
+HOME_AP_SSID="mini-homelab-5g"
+# HOME_AP_PSK= # passed as an argument
 HOSTNAME="mini-homelab"
 TIMEZONE="America/New_York" # override to local timezone
 ADMIN_USER="one49segolte"
@@ -78,6 +80,13 @@ template = true
 [[entry]]
 source = "networking/admin-ap.nmconnection"
 dest = "/etc/NetworkManager/system-connections/admin-ap.nmconnection"
+mode = "0600"
+owner = "root:root"
+template = true
+
+[[entry]]
+source = "networking/home-ap.nmconnection"
+dest = "/etc/NetworkManager/system-connections/home-ap.nmconnection"
 mode = "0600"
 owner = "root:root"
 template = true
