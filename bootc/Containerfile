@@ -46,6 +46,9 @@ RUN printf '%s\n' \
 
 COPY files/ /
 
+# NetworkManager only reads keyfiles with mode 0600
+RUN chmod 0600 /usr/lib/NetworkManager/system-connections/*.nmconnection
+
 RUN systemctl enable chronyd.service k3s.service bootc-fetch-apply-updates.timer
 
 # validates that the result is a well-formed, bootable bootc image.
