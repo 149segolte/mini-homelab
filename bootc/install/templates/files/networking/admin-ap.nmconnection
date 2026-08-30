@@ -1,6 +1,5 @@
 [connection]
 id=admin-ap
-uuid=${ADMIN_AP_UUID}
 type=wifi
 interface-name=wlan-adm
 autoconnect=true
@@ -11,7 +10,7 @@ zone=admin
 mode=ap
 band=bg
 channel=6
-ssid=mini-homelab
+ssid=${ADMIN_AP_SSID}
 powersave=2
 
 [wifi-security]

@@ -23,7 +23,7 @@
 # secrets are supplied at install time instead of committed.
 
 [vars]
-ADMIN_AP_UUID="FDF59677-8186-47F3-9963-5608741C86D2" # randomly generated
+ADMIN_AP_SSID="mini-homelab"
 # ADMIN_AP_PSK= # passed as an argument
 HOME_AP_SSID="mini-homelab-5g"
 # HOME_AP_PSK= # passed as an argument
