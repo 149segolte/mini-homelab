@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<policy target="ACCEPT">
+  <short>home-to-ext</short>
+  <description>Personal devices reach the internet through the host.</description>
+  <ingress-zone name="home" />
+  <egress-zone name="ext" />
+</policy>

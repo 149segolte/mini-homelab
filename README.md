@@ -10,14 +10,17 @@ Two layers, split by how often they change:
 Removing something from either layer removes it from the running system. Nothing
 is managed imperatively.
 
-```
-upstream ethernet (onboard)        firewalld zone: ext, DROP except 80/443
-        |
-   reverse proxy  -->  k3s workloads (pods on 10.42/16, svc on 10.43/16)
-        |
-internal 2.4GHz AP (brcmfmac)      firewalld zone: admin, 172.19.149.0/24
-        `-- SSH, kubectl (6443). k3s --node-ip pinned here.
-```
+| Zone    | Interface          | Network            | Accepts on the host  | Forwards to  |
+| ------- | ------------------ | ------------------ | -------------------- | ------------ |
+| `ext`   | `eth-ext`, onboard | upstream DHCP      | nothing              | nothing      |
+| `admin` | `wlan-adm`, 2.4GHz | 172.19.149.0/24    | ssh, dns, dhcp, 6443 | `ext`        |
+| `home`  | `wlan-usb`, 5GHz   | 172.19.150.0/24    | dns, dhcp, http/s    | `ext`, `k8s` |
+| `k8s`   | matched by source  | 10.42/16, 10.43/16 | —                    | —            |
+
+Everything transits the Pi. Both APs are NetworkManager `method=shared`, so each
+runs its own dnsmasq and NAT. `ext` is egress only — nothing upstream reaches
+the host or the cluster. SSH and 6443 is `admin` only. k3s pins `--node-ip` to
+the admin address so it survives upstream loss.
 
 ## Layout
 
@@ -106,12 +109,12 @@ Generated using [the Fedora CoreOS Raspberry Pi 4 provisioning guide](https://do
 
 ## Decisions
 
-| Decision                           | Why                                                                 |
-| ---------------------------------- | ------------------------------------------------------------------- |
-| U-Boot / DeviceTree boot, not EDK2 | EDK2 puts onboard wifi out of scope                                 |
-| firewalld, not raw nftables        | Zone model, and k3s documents a supported firewalld configuration   |
-| `--node-ip` on the admin address   | Survives upstream loss without reporting an unroutable address      |
-| `bootc upgrade` without `--apply`  | Stages the image automatically; reboot stays deliberate             |
+| Decision                           | Why                                                               |
+| ---------------------------------- | ----------------------------------------------------------------- |
+| U-Boot / DeviceTree boot, not EDK2 | EDK2 puts onboard wifi out of scope                               |
+| firewalld, not raw nftables        | Zone model, and k3s documents a supported firewalld configuration |
+| `--node-ip` on the admin address   | Survives upstream loss without reporting an unroutable address    |
+| `bootc upgrade` without `--apply`  | Stages the image automatically; reboot stays deliberate           |
 
 Config lives in `/usr` wherever possible — versioned with the image, unable to
 drift. `/etc` only for genuinely machine-local state. Secrets, SSH keys

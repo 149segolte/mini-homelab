@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<policy target="ACCEPT">
+  <short>home-to-k8s</short>
+  <description>Personal devices reach cluster workloads.</description>
+  <ingress-zone name="home" />
+  <egress-zone name="k8s" />
+</policy>

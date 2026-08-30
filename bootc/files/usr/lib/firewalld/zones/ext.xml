@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <zone target="DROP">
   <short>ext</short>
-  <description>Upstream network. Reverse proxy only.</description>
-  <service name="http" />
-  <service name="https" />
+  <description>Upstream network. Egress only; nothing is served here.</description>
 </zone>

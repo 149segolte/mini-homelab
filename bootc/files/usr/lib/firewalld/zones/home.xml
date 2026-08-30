@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<zone>
+  <short>home</short>
+  <description
+    >5GHz AP for personal devices. Internet and k3s access only.</description>
+  <service name="dhcp" />
+  <service name="dns" />
+  <service name="http" />
+  <service name="https" />
+</zone>
