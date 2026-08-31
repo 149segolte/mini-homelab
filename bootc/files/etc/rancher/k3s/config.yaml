@@ -1,3 +1,3 @@
-node-ip: 172.19.149.1
+node-ip: 172.19.150.1
 kubelet-arg:
   - config=/etc/rancher/k3s/kubelet.config

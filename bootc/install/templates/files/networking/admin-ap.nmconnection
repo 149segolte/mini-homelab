@@ -22,7 +22,7 @@ psk=${ADMIN_AP_PSK}
 
 [ipv4]
 method=shared
-address1=172.19.149.1/24
+address1=172.19.150.1/24
 
 [ipv6]
 method=disabled

@@ -13,8 +13,8 @@ is managed imperatively.
 | Zone    | Interface          | Network            | Accepts on the host  | Forwards to  |
 | ------- | ------------------ | ------------------ | -------------------- | ------------ |
 | `ext`   | `eth-ext`, onboard | upstream DHCP      | nothing              | nothing      |
-| `admin` | `wlan-adm`, 2.4GHz | 172.19.149.0/24    | ssh, dns, dhcp, 6443 | `ext`        |
-| `home`  | `wlan-usb`, 5GHz   | 172.19.150.0/24    | dns, dhcp, http/s    | `ext`, `k8s` |
+| `admin` | `wlan-adm`, 2.4GHz | 172.19.150.0/24    | ssh, dns, dhcp, 6443 | `ext`        |
+| `home`  | `wlan-usb`, 5GHz   | 172.19.149.0/24    | dns, dhcp, http/s    | `ext`, `k8s` |
 | `k8s`   | matched by source  | 10.42/16, 10.43/16 | —                    | —            |
 
 Everything transits the Pi. Both APs are NetworkManager `method=shared`, so each
