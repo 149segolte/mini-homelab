@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<zone>
+  <short>tailscale</short>
+  <description
+    >Tailnet. Device restrictions live in Tailscale ACLs, not here.</description>
+  <interface name="tailscale0" />
+  <service name="ssh" />
+  <service name="dns" />
+  <service name="http" />
+  <service name="https" />
+  <port protocol="tcp" port="6443" />
+</zone>

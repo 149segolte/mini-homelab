@@ -10,17 +10,23 @@ Two layers, split by how often they change:
 Removing something from either layer removes it from the running system. Nothing
 is managed imperatively.
 
-| Zone    | Interface          | Network            | Accepts on the host  | Forwards to  |
-| ------- | ------------------ | ------------------ | -------------------- | ------------ |
-| `ext`   | `eth-ext`, onboard | upstream DHCP      | nothing              | nothing      |
-| `admin` | `wlan-adm`, 2.4GHz | 172.19.150.0/24    | ssh, dns, dhcp, 6443 | `ext`        |
-| `home`  | `wlan-usb`, 5GHz   | 172.19.149.0/24    | dns, dhcp, http/s    | `ext`, `k8s` |
-| `k8s`   | matched by source  | 10.42/16, 10.43/16 | —                    | —            |
+| Zone        | Interface          | Network            | Accepts on the host    | Forwards to  |
+| ----------- | ------------------ | ------------------ | ---------------------- | ------------ |
+| `ext`       | `eth-ext`, onboard | upstream DHCP      | nothing                | nothing      |
+| `admin`     | `wlan-adm`, 2.4GHz | 172.19.150.0/24    | ssh, dns, dhcp, 6443   | `ext`        |
+| `home`      | `wlan-usb`, 5GHz   | 172.19.149.0/24    | dns, dhcp, http/s      | `ext`, `k8s` |
+| `tailscale` | `tailscale0`       | tailnet            | ssh, dns, http/s, 6443 | `ext`, `k8s` |
+| `k8s`       | matched by source  | 10.42/16, 10.43/16 | —                      | —            |
 
 Everything transits the Pi. Both APs are NetworkManager `method=shared`, so each
 runs its own dnsmasq and NAT. `ext` is egress only — nothing upstream reaches
-the host or the cluster. SSH and 6443 is `admin` only. k3s pins `--node-ip` to
-the admin address so it survives upstream loss.
+the host or the cluster. SSH and 6443 are reachable from `admin` and the
+tailnet, nowhere else. k3s pins `--node-ip` to the admin address so it survives
+upstream loss.
+
+`tailscale` runs as a host service rather than a workload, so remote access
+survives the cluster being down. Which devices may use it is a Tailscale ACL
+question; the zone only decides what the host answers at all.
 
 ## Layout
 

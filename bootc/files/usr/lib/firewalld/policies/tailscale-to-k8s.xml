@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<policy target="ACCEPT">
+  <short>tailscale-to-k8s</short>
+  <description>Tailnet reaches pod and service networks directly.</description>
+  <ingress-zone name="tailscale" />
+  <egress-zone name="k8s" />
+</policy>

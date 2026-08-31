@@ -19,6 +19,7 @@ RUN dnf -y install \
       firewalld \
       dnsmasq \
       chrony \
+      tailscale \
  && dnf clean all \
  && rm -rf /var/cache/* /var/lib/dnf /var/log/* /run/dnf /tmp/*
 
@@ -49,7 +50,7 @@ COPY files/ /
 # NetworkManager only reads keyfiles with mode 0600
 RUN chmod 0600 /usr/lib/NetworkManager/system-connections/*.nmconnection
 
-RUN systemctl enable chronyd.service k3s.service bootc-fetch-apply-updates.timer
+RUN systemctl enable chronyd.service tailscaled.service k3s.service bootc-fetch-apply-updates.timer
 
 # validates that the result is a well-formed, bootable bootc image.
 # https://docs.fedoraproject.org/en-US/bootc/building-containers/#_linting

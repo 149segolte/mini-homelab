@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<policy target="ACCEPT">
+  <short>tailscale-to-ext</short>
+  <description>Exit node: tailnet devices route their internet traffic here.</description>
+  <ingress-zone name="tailscale" />
+  <egress-zone name="ext" />
+</policy>
