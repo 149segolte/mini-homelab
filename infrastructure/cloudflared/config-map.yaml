@@ -19,4 +19,3 @@ data:
           # Traefik still serves its default self-signed cert. Swap for
           # originServerName once cert-manager issues the wildcard.
           noTLSVerify: true
-      - service: http_status:404
