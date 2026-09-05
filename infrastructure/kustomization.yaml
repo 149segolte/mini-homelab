@@ -3,4 +3,4 @@ kind: Kustomization
 resources:
   - external-secrets
   - traefik
-  - cloudflared.yaml
+  - cloudflared
