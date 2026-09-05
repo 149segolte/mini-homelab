@@ -14,3 +14,26 @@ spec:
         kind: HelmRepository
         name: flux-operator
         namespace: flux-system
+  values:
+    web:
+      enabled: true
+      config:
+        baseURL: https://flux.${DOMAIN}
+        authentication:
+          type: Anonymous
+          anonymous:
+            groups:
+              - flux-web-viewers
+      rbac:
+        createRoles: true
+        createAggregation: true
+      userActions:
+        access: Impersonated
+      ingress:
+        enabled: true
+        className: traefik
+        hosts:
+          - host: flux.${DOMAIN}
+            paths:
+              - path: /
+                pathType: Prefix
