@@ -110,11 +110,15 @@ every service shares 172.19.149.1, so a PTR could only name one of them.
 | Zone | Type | Record | Value |
 | --- | --- | --- | --- |
 | `dns.${DOMAIN}` | primary | `@` A | 172.19.149.1 |
+| `whoami.${DOMAIN}` | primary | `@` A | 172.19.149.1 |
+| `flux.${DOMAIN}` | primary | `@` A | 172.19.149.1 |
 
-Always 172.19.149.1: home-AP clients reach Traefik there directly, tailnet
-clients through the `/32` subnet route, and admin-AP clients cannot reach
-http/s at all ([networking](networking.md)). Anything hosted at Cloudflare
-rather than on the Pi gets no zone here.
+Always 172.19.149.1. Home-AP clients reach it directly; tailnet clients reach
+it over the advertised `/32` and resolve through split DNS pointed at the same
+address ([networking](networking.md)). Admin-AP clients cannot reach http/s at
+all, so they stay on port-forward.
+
+Anything hosted at Cloudflare rather than on the Pi gets no zone here.
 
 Add zones one at a time, after certificates work ([tls](tls.md)) — while they
 do not exist, a browser failure is unambiguously a cert problem.

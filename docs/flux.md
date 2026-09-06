@@ -25,8 +25,9 @@ its own tier is what puts admission control ahead of everything it governs
 
 All three prune and substitute from the `cluster-vars` ConfigMap, currently
 `DOMAIN`. Substitution reaches only what a Kustomization itself renders, so a
-nested one using a variable needs its own `postBuild` — `technitium` does,
-`cloudflared` does not.
+nested one using a variable needs its own `postBuild`. Substitution reaches
+generated ConfigMap content too, which is how cloudflared's `config.yaml` gets
+the domain.
 
 ## Nesting
 

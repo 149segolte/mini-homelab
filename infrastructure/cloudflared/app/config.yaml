@@ -9,6 +9,7 @@ no-autoupdate: true
 ingress:
   - service: https://traefik.kube-system.svc.cluster.local:443
     originRequest:
-      # Traefik still serves its default self-signed cert. Swap for
-      # originServerName once cert-manager issues the wildcard.
-      noTLSVerify: true
+      # The service DNS name is not on the wildcard, so verification is done
+      # against the apex instead. Only TLS: the original Host header is what
+      # Traefik routes on.
+      originServerName: ${DOMAIN}

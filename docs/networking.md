@@ -2,13 +2,13 @@
 
 Everything transits the Pi: upstream client, both APs, router, resolver.
 
-| Zone | Interface | Network | Accepts | Forwards to |
-| --- | --- | --- | --- | --- |
-| `ext` | `eth-ext`, onboard | upstream DHCP | nothing | nothing |
-| `admin` | `wlan-adm`, 2.4GHz | 172.19.150.0/24 | ssh, dns, dhcp, 6443 | `ext` |
-| `home` | `wlan-usb`, 5GHz | 172.19.149.0/24 | dns, dhcp, http/s | `ext`, `k8s` |
-| `tailscale` | `tailscale0` | tailnet | ssh, dns, http/s, 6443 | `ext`, `k8s` |
-| `k8s` | matched by source | 10.42/16, 10.43/16 | — | — |
+| Zone        | Interface          | Network            | Accepts                | Forwards to  |
+| ----------- | ------------------ | ------------------ | ---------------------- | ------------ |
+| `ext`       | `eth-ext`, onboard | upstream DHCP      | nothing                | nothing      |
+| `admin`     | `wlan-adm`, 2.4GHz | 172.19.150.0/24    | ssh, dns, dhcp, 6443   | `ext`        |
+| `home`      | `wlan-usb`, 5GHz   | 172.19.149.0/24    | dns, dhcp, http/s      | `ext`, `k8s` |
+| `tailscale` | `tailscale0`       | tailnet            | ssh, dns, http/s, 6443 | `ext`, `k8s` |
+| `k8s`       | matched by source  | 10.42/16, 10.43/16 | —                      | —            |
 
 `ext` is `DROP` and egress only. `k8s` matches on source address, so it holds
 whatever the CNI names its links. Forwarding is one firewalld policy file per
@@ -47,6 +47,13 @@ back into itself.
 ## Tailscale
 
 Host service, not a workload, so remote access survives the cluster being down.
-Forwarding is enabled in `sysctl.d` for exit-node and subnet-router use. Which
-devices may connect is a Tailscale ACL question; the zone only decides what the
-host answers.
+Forwarding is enabled in `sysctl.d`. Which devices may connect is a Tailscale
+ACL question; the zone only decides what the host answers.
+
+The rest lives in the Tailscale admin console, not this repo — the same treatment as Cloudflare's DNS
+records:
+
+- **approve both subnet routes**, and the exit node
+- **split DNS**: `${DOMAIN}` → nameserver `172.19.149.1`, which reaches the
+  home AP's dnsmasq and from there the same CoreDNS → Technitium chain
+  everything else uses ([technitium](technitium.md))

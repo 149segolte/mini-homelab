@@ -33,8 +33,8 @@ tunnel. Credentials come from Infisical ([secrets](secrets.md)), hence
 - Exactly one ingress rule, a catch-all. cloudflared requires the catch-all to
   be last and rejects a hostname-less rule anywhere else with `Rule #N is
   matching the hostname ''`. Per-hostname routing is Traefik's job.
-- `noTLSVerify` stands until cert-manager issues a real certificate, then
-  becomes `originServerName`.
+- `originServerName: ${DOMAIN}` rather than `noTLSVerify`: the in-cluster
+  service name is not on the wildcard, so the apex is what gets verified.
 
 ## Hostnames
 
