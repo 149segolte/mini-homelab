@@ -59,6 +59,8 @@ spec:
             - name: admin
               mountPath: /run/secrets/technitium
               readOnly: true
+            - name: logs
+              mountPath: /var/log/technitium
       volumes:
         - name: config
           persistentVolumeClaim:
@@ -69,3 +71,6 @@ spec:
             items:
               - key: password
                 path: password
+        - name: logs
+          emptyDir:
+            sizeLimit: 1Gi
