@@ -18,6 +18,7 @@
 | [GitOps](flux.md) | Flux shape, tiers and ordering |
 | [Secrets](secrets.md) | External Secrets Operator and Infisical |
 | [Ingress](ingress.md) | Traefik and the Cloudflare tunnel |
+| [TLS](tls.md) | cert-manager, the wildcard, and Traefik's default certificate |
 | [Admission control](admission.md) | PSA and Kyverno |
 
 ## Workloads

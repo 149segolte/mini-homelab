@@ -5,6 +5,15 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
+    # One wildcard served as the default certificate, so no Ingress needs a
+    # tls: block and no secret has to be replicated per namespace. Traefik
+    # falls back to a self-signed cert while wildcard-tls is absent, so there
+    # is no ordering requirement against cert-manager.
+    # Only one TLSStore may be named default cluster-wide.
+    tlsStore:
+      default:
+        defaultCertificate:
+          secretName: wildcard-tls
     ports:
       web:
         http:

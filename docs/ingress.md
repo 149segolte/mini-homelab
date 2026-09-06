@@ -16,8 +16,8 @@ rather than replaced: `web` redirects to `websecure`, JSON access logs.
 Host ports were dropped deliberately — Traefik is reached through its Service,
 which keeps it inside the `restricted` profile ([admission](admission.md)).
 
-TLS is still Traefik's default self-signed certificate; cert-manager and a
-wildcard for `${DOMAIN}` are not deployed.
+Traefik serves its generated self-signed certificate until the wildcard issues
+([tls](tls.md)).
 
 ## cloudflared
 
@@ -46,6 +46,9 @@ are managed in Cloudflare, outside this repo.
 | `whoami.` | smoke test |
 | `flux.` | Flux UI — anonymous auth mapped to a group bound to the built-in `view` ClusterRole, read-only |
 | `dns.`, `doh.` | Technitium — **no public record** ([technitium](technitium.md)) |
+
+TLS is one wildcard served as Traefik's default certificate, so no Ingress here
+carries a `tls:` block ([tls](tls.md)).
 
 `dns.` and `doh.` have no record deliberately: Technitium's recursion ACL is
 `10.42.0.0/16` and everything through Traefik carries a pod source address, so

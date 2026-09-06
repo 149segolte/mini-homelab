@@ -12,8 +12,9 @@ Secrets Operator.
 | `operator` | Helm chart `2.10.0` | `installCRDs: false` |
 | `crs` | this repo | the `ClusterSecretStore` |
 
-CRDs come from git so their lifecycle is explicit, and `wait: true` means the
-operator never starts against a half-established API. Chart version and CRD tag
+CRDs come from git and `wait: true` means the operator never starts against a
+half-established API — ESO's own [Flux recipe](https://external-secrets.io/latest/examples/gitops-using-fluxcd/),
+working around a race there rather than a pattern the rest of the repo follows. Chart version and CRD tag
 are pinned to the same release and must be bumped together.
 
 `installCRDs` is the chart's real master toggle. `crds.create: false` looks

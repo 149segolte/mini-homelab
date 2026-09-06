@@ -5,3 +5,4 @@ metadata:
   namespace: flux-system
 data:
   DOMAIN: 149segolte.dev
+  ACME_EMAIL: admin+acme@149segolte.dev

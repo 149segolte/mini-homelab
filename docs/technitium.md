@@ -35,8 +35,7 @@ included, until each is recreated by hand.
 Reaching those names still depends on where you are. Traefik is only exposed to
 the zones that allow http/s — `home` and `tailscale`, not `admin`
 ([networking](networking.md)). From the admin AP, port-forward stays the way
-in. TLS is Traefik's self-signed certificate until cert-manager lands, so
-expect a browser warning either way.
+in. Expect a browser warning until the wildcard issues ([tls](tls.md)).
 
 ## §1 Hard constraints
 
@@ -86,23 +85,39 @@ queries after a rebuild.
 
 ## §3 Zones
 
-**Fill this in as records are created, not afterwards.** Zones cannot be set by
+**Fill this in as zones are created, not afterwards.** Zones cannot be set by
 env var at all, only through the UI or API, so this section is the only backup
 they have.
 
-Defaults apply unless stated: TTL 3600, no expiry.
+### Never a zone for `${DOMAIN}` itself
 
-No reverse DNS. Every service shares 172.19.149.1, so a PTR could only name one
-of them — leave "Add reverse (PTR) record" unchecked.
+It makes Technitium authoritative for everything under the domain, so any name
+without a record returns NXDOMAIN instead of falling through to the forwarders.
+That breaks every Cloudflare-hosted service, and it breaks
+`_acme-challenge.${DOMAIN}` — so certificate renewal fails silently about sixty
+days later.
+
+### One primary zone per internal name
+
+A zone named for the full hostname, one A record at its apex. Longest match
+wins, so everything else under `${DOMAIN}` still forwards out. The failure mode
+inverts usefully: a missing zone resolves publicly and takes the tunnel — slower,
+but working.
+
+Defaults apply unless stated: TTL 3600, no expiry. No reverse DNS anywhere —
+every service shares 172.19.149.1, so a PTR could only name one of them.
 
 | Zone | Type | Record | Value |
 | --- | --- | --- | --- |
 | `dns.${DOMAIN}` | primary | `@` A | 172.19.149.1 |
 
-One zone per hostname, never a zone for `${DOMAIN}` itself — see
-[first access](#first-access).
+Always 172.19.149.1: home-AP clients reach Traefik there directly, tailnet
+clients through the `/32` subnet route, and admin-AP clients cannot reach
+http/s at all ([networking](networking.md)). Anything hosted at Cloudflare
+rather than on the Pi gets no zone here.
 
-Split-horizon rewrites land here too, once cert-manager and the wildcard exist.
+Add zones one at a time, after certificates work ([tls](tls.md)) — while they
+do not exist, a browser failure is unambiguously a cert problem.
 
 ## Verify
 

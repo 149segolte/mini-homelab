@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - flux-operator
   - external-secrets
+  - cert-manager
   - traefik
   - cloudflared
   - technitium

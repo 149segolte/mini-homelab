@@ -1,0 +1,25 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: cert-manager-issuers
+  namespace: flux-system
+spec:
+  # cert-manager's CRDs for the ClusterIssuer and Certificate, ESO's for the
+  # ExternalSecret holding the Cloudflare token.
+  dependsOn:
+    - name: cert-manager-controller
+    - name: external-secrets-crs
+  interval: 1h
+  retryInterval: 1m
+  # wait blocks on cert going Ready, and first DNS-01 issuance takes minutes.
+  timeout: 10m
+  path: ./infrastructure/cert-manager/issuers
+  prune: true
+  wait: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars
