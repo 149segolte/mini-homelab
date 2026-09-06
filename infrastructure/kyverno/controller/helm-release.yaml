@@ -16,6 +16,18 @@ spec:
         name: kyverno
         namespace: flux-system
   values:
+    # failurePolicy: Fail makes an unreachable webhook reject the request, so
+    # we exclude core namespaces
+    config:
+      webhooks:
+        namespaceSelector:
+          matchExpressions:
+            - key: kubernetes.io/metadata.name
+              operator: NotIn
+              values:
+                - kube-system
+                - flux-system
+
     admissionController:
       replicas: 1
     reportsController:

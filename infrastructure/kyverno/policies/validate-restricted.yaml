@@ -5,7 +5,7 @@ metadata:
 spec:
   # Ignore because on a single node a fail-closed can break Kyverno's own pod.
   # PSA's baseline is the floor that makes fail-open tolerable.
-  failurePolicy: Ignore
+  failurePolicy: Fail
   background: false
   rules:
     - name: restricted
@@ -21,7 +21,7 @@ spec:
                 - kube-system
                 - flux-system
       validate:
-        failureAction: Audit
+        failureAction: Enforce
         podSecurity:
           level: restricted
           version: latest
