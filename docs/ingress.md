@@ -44,7 +44,7 @@ are managed in Cloudflare, outside this repo.
 | Host | |
 | --- | --- |
 | `whoami.` | smoke test |
-| `flux.` | Flux UI — anonymous auth mapped to a group bound to the built-in `view` ClusterRole, read-only |
+| `flux.` | Flux UI — anonymous auth impersonating a group bound to `view`, plus `system:discovery` and `system:basic-user`, which impersonation does not inherit |
 | `dns.`, `doh.` | Technitium — **no public record** ([technitium](technitium.md)) |
 
 TLS is one wildcard served as Traefik's default certificate, so no Ingress here

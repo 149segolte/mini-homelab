@@ -10,3 +10,31 @@ subjects:
   - kind: Group
     name: flux-web-viewers
     apiGroup: rbac.authorization.k8s.io
+---
+# GET /api, /apis — the API discovery the client needs before any list.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: flux-web-viewers-discovery
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:discovery
+subjects:
+  - kind: Group
+    name: flux-web-viewers
+    apiGroup: rbac.authorization.k8s.io
+---
+# create selfsubjectaccessreviews — how the UI decides what to show.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: flux-web-viewers-basic
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:basic-user
+subjects:
+  - kind: Group
+    name: flux-web-viewers
+    apiGroup: rbac.authorization.k8s.io
