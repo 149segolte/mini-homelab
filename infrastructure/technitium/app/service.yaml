@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: technitium
+  namespace: technitium
+spec:
+  selector:
+    app: technitium
+  ports:
+    - name: http
+      port: 5380
+      targetPort: http
+    - name: doh
+      port: 80
+      targetPort: doh

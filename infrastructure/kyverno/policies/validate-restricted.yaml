@@ -18,8 +18,26 @@ spec:
               namespaces:
                 - kube-system
                 - flux-system
+                # Governed by restricted-technitium below.
+                - technitium
       validate:
         failureAction: Enforce
         podSecurity:
           level: restricted
           version: latest
+
+    - name: restricted-technitium
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - technitium
+      validate:
+        failureAction: Enforce
+        podSecurity:
+          level: restricted
+          version: latest
+          exclude:
+            - controlName: "Host Ports"
