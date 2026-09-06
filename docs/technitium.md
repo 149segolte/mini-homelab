@@ -10,8 +10,33 @@ a credential, not a preference, and first-run-only is the right semantics for a
 bootstrap password — without it a rebuild has an admin/admin window on a
 namespace the home AP can reach.
 
-Rebuild order: restore or recreate the PVC, log in at `dns.${DOMAIN}`, apply
-§1, then §2, then §3. §1 first is not stylistic — see the forwarders entry.
+Rebuild order: restore or recreate the PVC, reach the UI (below), apply §1,
+then §2, then §3. §1 first is not stylistic — see the forwarders entry.
+
+## First access
+
+`dns.${DOMAIN}` has no public record and Technitium is what would resolve it,
+so on a fresh store the name does not work yet. Port-forward instead — it needs
+only the apiserver, which the admin AP allows:
+
+```bash
+kubectl -n technitium port-forward svc/technitium 5380:5380
+# http://127.0.0.1:5380
+```
+
+To make the name work afterwards, add a **zone per hostname** — `dns.${DOMAIN}`
+as its own primary zone with an A record at the apex pointing at 172.19.149.1,
+and the same for `doh.${DOMAIN}` if you want DoH by name. Record these in §3.
+
+Not a zone for `${DOMAIN}` itself: that makes Technitium authoritative for the
+whole domain and shadows every public name under it, `whoami.` and `flux.`
+included, until each is recreated by hand.
+
+Reaching those names still depends on where you are. Traefik is only exposed to
+the zones that allow http/s — `home` and `tailscale`, not `admin`
+([networking](networking.md)). From the admin AP, port-forward stays the way
+in. TLS is Traefik's self-signed certificate until cert-manager lands, so
+expect a browser warning either way.
 
 ## §1 Hard constraints
 
@@ -53,7 +78,7 @@ are hints — they track Technitium's UI, not this repo, and may have moved.
 | Blocklist URLs | `https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts` | Settings → Blocking |
 | Blocklist refresh | daily | Settings → Blocking |
 | In-memory stats | on | Settings → Logging |
-| Query logging | as needed | Settings → Logging |
+| Query logging | as needed | Settings → Logging — `/var/log/technitium` is an `emptyDir`, so logs do not survive a restart |
 | DNSSEC validation | on | Settings → Recursion |
 
 Blocklists re-download on a lost volume, so expect a few minutes of unblocked
@@ -61,12 +86,23 @@ queries after a rebuild.
 
 ## §3 Zones
 
-Deliberately empty — **fill this in as records are created, not afterwards.**
-Zones cannot be set by env var at all, only through the UI or API, so this
-section is the only backup they have.
+**Fill this in as records are created, not afterwards.** Zones cannot be set by
+env var at all, only through the UI or API, so this section is the only backup
+they have.
 
-Split-horizon rewrites and reverse DNS land here. Both need cert-manager and
-the wildcard first.
+Defaults apply unless stated: TTL 3600, no expiry.
+
+No reverse DNS. Every service shares 172.19.149.1, so a PTR could only name one
+of them — leave "Add reverse (PTR) record" unchecked.
+
+| Zone | Type | Record | Value |
+| --- | --- | --- | --- |
+| `dns.${DOMAIN}` | primary | `@` A | 172.19.149.1 |
+
+One zone per hostname, never a zone for `${DOMAIN}` itself — see
+[first access](#first-access).
+
+Split-horizon rewrites land here too, once cert-manager and the wildcard exist.
 
 ## Verify
 
