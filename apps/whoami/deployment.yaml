@@ -21,8 +21,5 @@ spec:
             - containerPort: 8080
           securityContext:
             runAsNonRoot: true
+            # By default, container does not set a user. Changing to non-root.
             runAsUser: 65534
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: ["ALL"]

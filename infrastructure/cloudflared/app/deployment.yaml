@@ -16,8 +16,7 @@ spec:
         app: cloudflared
     spec:
       securityContext:
-        seccompProfile:
-          type: RuntimeDefault
+        runAsNonRoot: true
       containers:
         - name: cloudflared
           image: docker.io/cloudflare/cloudflared:2026.8.3
@@ -41,11 +40,6 @@ spec:
               path: /ready
               port: metrics
             periodSeconds: 10
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: [ALL]
           volumeMounts:
             - name: config
               mountPath: /etc/cloudflared/config
