@@ -30,7 +30,13 @@ spec:
               - (name): "*"
                 securityContext:
                   +(allowPrivilegeEscalation): false
+                  +(capabilities):
+                    drop:
+                      - ALL
             initContainers:
               - (name): "*"
                 securityContext:
                   +(allowPrivilegeEscalation): false
+                  +(capabilities):
+                    drop:
+                      - ALL
