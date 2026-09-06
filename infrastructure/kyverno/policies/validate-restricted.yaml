@@ -1,0 +1,27 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: validate-pod-security-restricted
+spec:
+  # Ignore because on a single node a fail-closed can break Kyverno's own pod.
+  # PSA's baseline is the floor that makes fail-open tolerable.
+  failurePolicy: Ignore
+  background: false
+  rules:
+    - name: restricted
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - flux-system
+      validate:
+        failureAction: Audit
+        podSecurity:
+          level: restricted
+          version: latest

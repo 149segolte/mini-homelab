@@ -1,0 +1,36 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-default-securitycontext
+spec:
+  # Ignore because on a single node a fail-closed can break Kyverno's own pod.
+  # PSA's baseline is the floor that makes fail-open tolerable.
+  failurePolicy: Ignore
+  background: false
+  rules:
+    - name: default-seccomp-and-privilege-escalation
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - flux-system
+      mutate:
+        patchStrategicMerge:
+          spec:
+            securityContext:
+              +(seccompProfile):
+                type: RuntimeDefault
+            containers:
+              - (name): "*"
+                securityContext:
+                  +(allowPrivilegeEscalation): false
+            initContainers:
+              - (name): "*"
+                securityContext:
+                  +(allowPrivilegeEscalation): false
