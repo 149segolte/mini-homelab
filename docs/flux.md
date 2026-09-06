@@ -24,15 +24,18 @@ its own tier is what puts admission control ahead of everything it governs
 ([admission](admission.md)).
 
 All three prune and substitute from the `cluster-vars` ConfigMap, currently
-`DOMAIN`.
+`DOMAIN`. Substitution reaches only what a Kustomization itself renders, so a
+nested one using a variable needs its own `postBuild` — `technitium` does,
+`cloudflared` does not.
 
 ## Nesting
 
 Components with internal ordering repeat the pattern one level down — a
 directory of manifests, a Flux Kustomization pointing at it, and `sources.yaml`
 for what it pulls from. That is what orders `crds → operator → crs` inside
-external-secrets without ordering everything else, and lets `cloudflared`
-declare `dependsOn: external-secrets-crs` across component boundaries.
+external-secrets without ordering everything else, and lets `cloudflared` and
+`technitium` declare `dependsOn: external-secrets-crs` across component
+boundaries.
 
 Every component declares its own namespace as a manifest rather than relying on
 `targetNamespace`, so labels and deletion stay declarative.

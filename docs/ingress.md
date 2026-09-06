@@ -39,6 +39,14 @@ tunnel. Credentials come from Infisical ([secrets](secrets.md)), hence
 ## Hostnames
 
 Built from `${DOMAIN}` in `cluster-vars` ([gitops](flux.md#tiers)); DNS records
-are managed in Cloudflare, outside this repo. The Flux web UI is anonymous
-auth mapped to a group bound to the built-in `view` ClusterRole — read-only,
-reachable only through the tunnel or the LAN.
+are managed in Cloudflare, outside this repo.
+
+| Host | |
+| --- | --- |
+| `whoami.` | smoke test |
+| `flux.` | Flux UI — anonymous auth mapped to a group bound to the built-in `view` ClusterRole, read-only |
+| `dns.`, `doh.` | Technitium — **no public record** ([technitium](technitium.md)) |
+
+`dns.` and `doh.` have no record deliberately: Technitium's recursion ACL is
+`10.42.0.0/16` and everything through Traefik carries a pod source address, so
+a reachable `doh.` host is an open resolver.

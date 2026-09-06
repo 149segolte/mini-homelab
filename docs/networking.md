@@ -35,9 +35,14 @@ dnsmasq forwards only; CoreDNS is the single cache (resolved's is off). CoreDNS
 binds loopback, so k3s is pointed at 172.19.150.1 instead — a pod's loopback is
 its own.
 
-**Nothing listens on 5335 yet.** It is reserved for the local recursive
-resolver; queries fall through to the public ones until it lands. Health checks
-keep that to one failed probe rather than a per-query delay.
+127.0.0.1:5335 is Technitium, running as a cluster workload with a `hostPort`
+bound to loopback ([technitium](technitium.md)). Health checks mean the host
+keeps resolving through the public forwarders whenever that pod is down, so
+losing the cluster costs ad blocking, not DNS.
+
+That the resolver is downstream of the resolver chain is also why its own
+forwarders must be IP literals — a hostname there resolves through this chain
+back into itself.
 
 ## Tailscale
 

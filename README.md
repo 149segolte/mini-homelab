@@ -12,18 +12,8 @@ Nothing is managed imperatively.
 
 ## Docs
 
-| | |
-| --- | --- |
-| [Host image](docs/host-image.md) | what is in the image, how it is built and published, how upgrades land |
-| [Installing to disk](docs/install.md) | partition layout, the install sequence, the Pi's ESP |
-| [Install-time overlay](docs/overlay.md) | machine-local config and secrets: `config.toml`, `overlay.py` |
-| [Networking](docs/networking.md) | firewalld zones, both APs, DNS, tailscale |
-| [k3s](docs/k3s.md) | the host service and its configuration |
-| [GitOps](docs/flux.md) | Flux shape, tiers and ordering |
-| [Bootstrapping](docs/bootstrap.md) | the one-time commands that hand the cluster to Flux |
-| [Secrets](docs/secrets.md) | External Secrets Operator and Infisical |
-| [Ingress](docs/ingress.md) | Traefik and the Cloudflare tunnel |
-| [Admission control](docs/admission.md) | PSA and Kyverno |
+[docs/](docs/) — host image, install, networking, k3s, Flux, and each cluster
+component.
 
 ## Layout
 

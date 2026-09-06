@@ -16,6 +16,11 @@ PSA is the floor; Kyverno is the policy.
 At the apiserver rather than as namespace labels because a default has to apply
 to namespaces nobody has labelled. A label is opt-in; this is the floor.
 
+`technitium` is the only namespace that lifts it, labelled `privileged`:
+baseline disallows any non-zero `hostPort` and PSA is all-or-nothing per
+namespace. Kyverno does the enforcing there instead — the reason for having
+both layers.
+
 ## Kyverno
 
 Chart 3.9.0 in its own namespace, deployed as its own Flux tier so it is live
@@ -29,8 +34,13 @@ adding only what is missing — the `+(field)` anchor never overwrites. Pod gets
 
 `validate-pod-security-restricted` then enforces `restricted` at `latest`.
 Mutation runs first, so a workload that merely omits the boilerplate is fixed
-rather than rejected. The one exclusion is `Host Ports` for `*technitium*`
-images, which need :53 on the node.
+rather than rejected.
+
+`technitium` is the one exception, and it takes two rules rather than one
+relaxation: the broad rule excludes the namespace, and `restricted-technitium`
+re-applies `restricted` there minus `Host Ports`. Excluding the namespace is
+required — both rules would otherwise evaluate and the strict one would still
+block the pod.
 
 Both set `background: false` — they gate admission, they do not retroactively
 mutate or report.
