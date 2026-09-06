@@ -22,6 +22,7 @@ spec:
         authentication:
           type: Anonymous
           anonymous:
+            username: flux-web-anonymous
             groups:
               - flux-web-viewers
       rbac:
