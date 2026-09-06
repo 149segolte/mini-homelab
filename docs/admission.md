@@ -42,6 +42,11 @@ re-applies `restricted` there minus `Host Ports`. Excluding the namespace is
 required — both rules would otherwise evaluate and the strict one would still
 block the pod.
 
+`Host Ports` is a container-level control, so Kyverno rejects the policy at
+admission unless an image pattern accompanies it. Both mistakes surface the
+same way, as a `dry-run failed` on the Kustomization rather than at pod
+creation.
+
 Both set `background: false` — they gate admission, they do not retroactively
 mutate or report.
 

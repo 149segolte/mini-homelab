@@ -41,3 +41,5 @@ spec:
           version: latest
           exclude:
             - controlName: "Host Ports"
+              images:
+                - "*technitium/dns-server*"
