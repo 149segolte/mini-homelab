@@ -3,8 +3,6 @@ kind: ClusterPolicy
 metadata:
   name: add-default-securitycontext
 spec:
-  # Ignore because on a single node a fail-closed can break Kyverno's own pod.
-  # PSA's baseline is the floor that makes fail-open tolerable.
   failurePolicy: Fail
   background: false
   rules:
