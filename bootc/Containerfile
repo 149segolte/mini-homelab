@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 
-ARG COREDNS_VERSION=1.12.4
+ARG COREDNS_VERSION=1.14.6
 
 FROM docker.io/coredns/coredns:${COREDNS_VERSION} AS coredns
 
