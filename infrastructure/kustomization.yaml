@@ -3,6 +3,5 @@ kind: Kustomization
 resources:
   - flux-operator
   - external-secrets
-  - kyverno
   - traefik
   - cloudflared
