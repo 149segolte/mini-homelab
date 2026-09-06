@@ -1,4 +1,5 @@
 node-ip: 172.19.150.1
+resolv-conf: /etc/rancher/k3s/resolv.conf
 kubelet-arg:
   - config=/etc/rancher/k3s/kubelet.config
 kube-apiserver-arg:

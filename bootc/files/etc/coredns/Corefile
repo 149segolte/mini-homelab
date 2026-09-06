@@ -1,0 +1,12 @@
+.:53 {
+    bind 127.0.0.1
+    errors
+    cache 30
+    forward . 127.0.0.1:5335 1.1.1.1 8.8.8.8 {
+        policy sequential
+        health_check 5s
+        max_fails 2
+    }
+    loop
+    reload
+}

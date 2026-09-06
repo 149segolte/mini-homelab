@@ -7,6 +7,8 @@ zone=ext
 
 [ipv4]
 method=auto
+ignore-auto-dns=true
+dns=127.0.0.1;
 
 [ipv6]
-method=auto
+method=disabled

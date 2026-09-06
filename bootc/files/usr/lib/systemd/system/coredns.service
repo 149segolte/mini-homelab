@@ -1,0 +1,12 @@
+[Unit]
+Description=CoreDNS
+
+[Service]
+ExecStart=/usr/bin/coredns -conf /etc/coredns/Corefile
+Restart=always
+RestartSec=2
+DynamicUser=yes
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target
