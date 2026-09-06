@@ -7,8 +7,6 @@ spec:
   interval: 30m
   releaseName: external-secrets
   targetNamespace: external-secrets
-  install:
-    createNamespace: true
   chart:
     spec:
       chart: external-secrets
