@@ -20,6 +20,7 @@
 | [Ingress](ingress.md) | Traefik and the Cloudflare tunnel |
 | [TLS](tls.md) | cert-manager, the wildcard, and Traefik's default certificate |
 | [Admission control](admission.md) | PSA and Kyverno |
+| [Auth](auth.md) | Authelia and the ForwardAuth middleware |
 
 ## Workloads
 

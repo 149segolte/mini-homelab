@@ -3,10 +3,6 @@ kind: Ingress
 metadata:
   name: whoami
   namespace: whoami
-  annotations:
-    traefik.ingress.kubernetes.io/router.entryPoints: "websecure"
-    traefik.ingress.kubernetes.io/router.middlewares: "authelia-authelia@kubernetescrd"
-    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
   ingressClassName: traefik
   rules:

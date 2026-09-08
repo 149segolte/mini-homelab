@@ -11,13 +11,16 @@ port forward upstream and nothing to expose by accident.
 ## Traefik
 
 Bundled with k3s, configured in place with a `HelmChartConfig` in `kube-system`
-rather than replaced: `web` redirects to `websecure`, JSON access logs.
+rather than replaced: `web` redirects to `websecure`, JSON access logs, and the
+Authelia middleware on the `websecure` entrypoint so every route is
+authenticated by default ([auth](auth.md)).
 
 Host ports were dropped deliberately — Traefik is reached through its Service,
 which keeps it inside the `restricted` profile ([admission](admission.md)).
 
-Traefik serves its generated self-signed certificate until the wildcard issues
-([tls](tls.md)).
+One wildcard is served as the default certificate, so no Ingress carries a
+`tls:` block. Traefik falls back to a generated self-signed certificate only
+while `wildcard-tls` is absent ([tls](tls.md)).
 
 ## cloudflared
 
@@ -43,12 +46,10 @@ are managed in Cloudflare, outside this repo.
 
 | Host | |
 | --- | --- |
-| `whoami.` | smoke test |
+| `whoami.` | smoke test — `one_factor`, so it stays usable |
+| `auth.` | Authelia ([auth](auth.md)) |
 | `flux.` | Flux UI — anonymous auth impersonating a group bound to `view`, plus `system:discovery` and `system:basic-user`, which impersonation does not inherit |
 | `dns.`, `doh.` | Technitium — **no public record** ([technitium](technitium.md)) |
-
-TLS is one wildcard served as Traefik's default certificate, so no Ingress here
-carries a `tls:` block ([tls](tls.md)).
 
 `dns.` and `doh.` have no record deliberately: Technitium's recursion ACL is
 `10.42.0.0/16` and everything through Traefik carries a pod source address, so

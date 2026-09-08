@@ -75,8 +75,8 @@ storage:
   local:
     path: /data/db.sqlite3
 
-# Filesystem rather than SMTP: nothing sends mail while password reset is
-# disabled and 2FA is off. Both of those turn this into an smtp block.
+# Filesystem rather than SMTP. Second-factor enrolment still needs its one-time
+# link, so read it out of the pod: see docs/auth.md.
 notifier:
   filesystem:
     filename: /data/notification.txt
