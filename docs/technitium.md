@@ -110,6 +110,7 @@ every service shares 172.19.149.1, so a PTR could only name one of them.
 | Zone | Type | Record | Value |
 | --- | --- | --- | --- |
 | `dns.${DOMAIN}` | primary | `@` A | 172.19.149.1 |
+| `auth.${DOMAIN}` | primary | `@` A | 172.19.149.1 |
 | `whoami.${DOMAIN}` | primary | `@` A | 172.19.149.1 |
 | `flux.${DOMAIN}` | primary | `@` A | 172.19.149.1 |
 

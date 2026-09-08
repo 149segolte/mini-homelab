@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authelia
+  namespace: authelia
+spec:
+  replicas: 1
+  # RWO volume: the new pod cannot mount until the old one releases it.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: authelia
+  template:
+    metadata:
+      labels:
+        app: authelia
+    spec:
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        # authelia does not set a user, so runAsUser is needed.
+        runAsUser: 65534
+      containers:
+        - name: authelia
+          image: docker.io/authelia/authelia:4.39
+          args: ["--config", "/config/configuration.yml"]
+          env:
+            - name: AUTHELIA_SESSION_SECRET_FILE
+              value: /secrets/session_secret
+            - name: AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE
+              value: /secrets/storage_encryption_key
+          ports:
+            - name: http
+              containerPort: 9091
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: secrets
+              mountPath: /secrets
+              readOnly: true
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: config
+          configMap:
+            name: authelia
+        - name: secrets
+          secret:
+            secretName: authelia
+        - name: data
+          persistentVolumeClaim:
+            claimName: authelia

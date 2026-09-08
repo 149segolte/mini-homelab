@@ -14,6 +14,10 @@ spec:
       default:
         defaultCertificate:
           secretName: wildcard-tls
+    # Allow middlewares to exist in a separate namespace from Traefik.
+    providers:
+      kubernetesCRD:
+        allowCrossNamespace: true
     ports:
       web:
         http:

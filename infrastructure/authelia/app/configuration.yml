@@ -1,0 +1,74 @@
+theme: dark
+
+server:
+  address: "tcp://:9091"
+
+log:
+  level: info
+
+authentication_backend:
+  password_reset:
+    disable: true
+  password_change:
+    disable: true
+  file:
+    path: /secrets/users_database.yml
+    watch: true
+    search:
+      case_insensitive: true
+      email: true
+
+totp:
+  disable: false
+  issuer: auth.${DOMAIN}
+
+webauthn:
+  enable_passkey_login: true
+  attestation_conveyance_preference: "direct"
+  filtering:
+    prohibit_backup_eligibility: true
+  metadata:
+    enabled: true
+    validate_trust_anchor: true
+    validate_entry: true
+    validate_status: true
+    validate_entry_permit_zero_aaguid: false
+
+access_control:
+  default_policy: deny
+  rules:
+    # Authelia's own portal.
+    - domain: auth.${DOMAIN}
+      policy: bypass
+    # DoH clients cannot follow a browser redirect.
+    - domain: doh.${DOMAIN}
+      policy: bypass
+      resources:
+        - "^/dns-query([/?].*)?$"
+    # Two-factor authentication for all other domains.
+    - domain: "*.${DOMAIN}"
+      policy: two_factor
+
+password_policy:
+  zxcvbn:
+    enabled: true
+    min_score: 3
+
+session:
+  cookies:
+    - name: authelia_session
+      # The parent of every protected host.
+      domain: ${DOMAIN}
+      authelia_url: https://auth.${DOMAIN}
+      expiration: 12 hours
+      inactivity: 1 hour
+
+storage:
+  local:
+    path: /data/db.sqlite3
+
+# Filesystem rather than SMTP: nothing sends mail while password reset is
+# disabled and 2FA is off. Both of those turn this into an smtp block.
+notifier:
+  filesystem:
+    filename: /data/notification.txt
