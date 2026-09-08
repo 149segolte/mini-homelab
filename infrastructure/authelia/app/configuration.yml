@@ -27,6 +27,7 @@ webauthn:
   attestation_conveyance_preference: "direct"
   metadata:
     enabled: true
+    cache_policy: relaxed
     validate_trust_anchor: true
     validate_entry: true
     validate_status: true
