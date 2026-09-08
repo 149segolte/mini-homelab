@@ -44,6 +44,8 @@ access_control:
       policy: bypass
       resources:
         - "^/dns-query([/?].*)?$"
+    - domain: whoami.${DOMAIN}
+      policy: one_factor
     # Two-factor authentication for all other domains.
     - domain: "*.${DOMAIN}"
       policy: two_factor
