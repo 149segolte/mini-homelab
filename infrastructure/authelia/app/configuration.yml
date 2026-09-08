@@ -2,6 +2,13 @@ theme: dark
 
 server:
   address: "tcp://:9091"
+  endpoints:
+    authz:
+      forward-auth:
+        implementation: "ForwardAuth"
+        authn_strategies:
+          - name: "HeaderProxyAuthorization"
+          - name: "CookieSession"
 
 log:
   level: info
