@@ -55,6 +55,30 @@ silently.
 Changing the DNS port is the nastiest of these: DNS keeps working, because host
 CoreDNS falls through to 1.1.1.1, and only ad blocking stops.
 
+### SSO
+
+OIDC against Authelia ([auth](auth.md)). Like everything `DNS_SERVER_*`, the
+env block in the deployment applies on a **fresh store only** — the running
+instance is configured in Settings, and these are the values it must hold:
+
+| Setting | Value |
+| --- | --- |
+| Authority | `https://auth.${DOMAIN}` |
+| Client ID / secret | from `authelia/oidc/clients/technitium/{id,secret}` |
+| Scopes | `openid,profile,groups` — must match the client's granted scopes |
+| Client auth | Technitium sends `client_secret_post`; the Authelia client is registered to match ([auth](auth.md)) |
+| Allow signup | on |
+| Only for mapped users | on |
+| Group map | `admins:Administrators` |
+
+Both signup flags are needed together: allow-signup is the gate, and
+only-for-mapped-users narrows it to users carrying a mapped group. With the
+gate off the narrowing never runs and login fails with "new user sign up is
+disabled".
+
+Technitium's own login stays in place; SSO is an additional button on it.
+Groups arrive from userinfo, so no Authelia claims policy is involved.
+
 Two standing rules that are not settings:
 
 - **No public DNS records for `dns.` or `doh.`.** The recursion ACL is

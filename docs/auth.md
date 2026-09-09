@@ -58,36 +58,42 @@ browser falls through to the session cookie.
 
 ## Secrets
 
-Three keys, all under `authelia/` in Infisical: `session-secret`,
-`storage-encryption-key`, `users-database`. The first two are
-`openssl rand -hex 32` and reach the pod as `*_FILE` env vars — the config path
-uppercased, `_`-joined, prefixed `AUTHELIA_`, suffixed `_FILE`, which is how the
-OIDC ones will be named.
+Everything lives under `authelia/` in Infisical, one single-line value each.
+The structure that consumes them is in the ExternalSecret
+([composition](#composition)).
 
-There is no JWT secret because both password reset and password change are
-disabled, so `identity_validation.reset_password` never runs.
+| Key | |
+| --- | --- |
+| `session-secret`, `storage-encryption-key` | `openssl rand -hex 32`; reach the pod as `*_FILE` env vars |
+| `user-password-hashes/<username>` | one argon2 hash per user in the template |
+| `oidc/hmac-secret` | random, 64+ chars |
+| `oidc/jwks-key/private.pem` | the RSA private key |
+| `oidc/clients/<name>/id` | client id |
+| `oidc/clients/<name>/secret` | plaintext, for the client |
+| `oidc/clients/<name>/secret-hash` | pbkdf2, for Authelia |
 
-`users-database` is a whole `users_database.yml`. Generate the hash locally so
-no plaintext password reaches the cluster:
+The `*_FILE` env var name is the config path uppercased and `_`-joined,
+prefixed `AUTHELIA_`. There is no JWT secret: password reset and change are
+both disabled, so `identity_validation.reset_password` never runs.
+
+Generate hashes locally so no plaintext reaches the cluster:
 
 ```bash
 podman run --rm docker.io/authelia/authelia:4.39 \
-  authelia crypto hash generate argon2 --random --random.length 24
+  authelia crypto hash generate argon2 --random --random.length 24   # users
+podman run --rm docker.io/authelia/authelia:4.39 \
+  authelia crypto hash generate pbkdf2 --variant sha512 --random --random.length 72
+podman run --rm docker.io/authelia/authelia:4.39 \
+  authelia crypto pair rsa generate --directory /tmp
 ```
 
-```yaml
-users:
-  <user>:
-    disabled: false
-    displayname: '<name>'
-    password: '$argon2id$v=19$...'
-    email: '<address>'
-    groups:
-      - admins
-```
+The pbkdf2 command prints both the plaintext and the hash — they go to
+different places, per the table above.
 
-`authentication_backend.file.watch: true` means an ESO refresh is picked up
-without restarting the pod. Logins accept the email address or any casing.
+Adding a user means an entry in the ExternalSecret's `users_database.yml`
+template plus its hash in Infisical. `authentication_backend.file.watch: true`
+means an ESO refresh is picked up without restarting the pod, and logins accept
+the email address or any casing.
 
 ## Enrolling a second factor
 
@@ -116,20 +122,77 @@ on, so authenticator models are checked against FIDO's blob.
 
 Passwords are checked against zxcvbn with a minimum score of 3.
 
-## Identity
+## OIDC
 
-The forwardAuth response carries `Remote-User`, `Remote-Groups`, `Remote-Email`
-and `Remote-Name`, but neither consumer reads them: the Flux UI accepts only
-`Anonymous` or `OAuth2`/OIDC, and Technitium's `DNS_SERVER_SSO_*` is OIDC only.
+Authelia's built-in provider, no extra component. Two clients: the Flux UI and
+Technitium, both of which speak only OIDC — the `Remote-*` headers the
+middleware emits are not readable by either.
 
-So access control is entirely in front of the apps. The Flux UI is anonymous
-behind Authelia, impersonating a group; Technitium keeps its own login as a
-second layer. Neither knows who is signed in.
+Redirect URIs are fixed by each app and are not conventions:
 
-The headers remain available to any future workload that supports
-trusted-header auth. That requires the app to be unreachable except through
-Traefik — anything with cluster network access, port-forward included, can
-otherwise forge `Remote-User` against the Service directly.
+| Client | Redirect URI |
+| --- | --- |
+| `flux-web` | `https://flux.${DOMAIN}/oauth2/callback` |
+| `technitium` | `https://dns.${DOMAIN}/sso/callback` |
+
+`offline_access` is in the Flux UI's default scope set, so its client must
+permit it or authorization fails with `invalid_scope`.
+
+### Per-client quirks
+
+Neither of these is optional; both were found by the client failing.
+
+**The Flux UI needs a claims policy.** Authelia calls `id_token` hydration an
+escape hatch because a compliant client reads these claims from userinfo. The
+Flux UI never calls userinfo — it reads the ID token and nothing else — so
+without the `flux` policy `claims.groups` is empty, impersonation grants
+nothing, and the UI fails in a way that looks like broken RBAC. Technitium does
+read userinfo, so it needs no policy.
+
+**Technitium needs `token_endpoint_auth_method: client_secret_post`.** Authelia
+defaults confidential clients to `client_secret_basic`, as the spec requires,
+but ASP.NET's OIDC handler puts the credentials in the request body. The
+mismatch surfaces as `invalid_client` at the pushed-authorization endpoint —
+which reads like a bad secret and is not one.
+
+### Composition
+
+Nothing credential-bearing is stored as a blob. `spec.target.template` with
+`engineVersion: v2` builds both `oidc.yml` and the users database in git and
+pulls in only the secrets, one single-line Infisical value each
+([secrets](secrets.md)).
+
+Authelia merges `--config a,b`, and a section must not appear in both, so
+`configuration.yml` carries no `identity_providers` block.
+
+User hashes come in through `dataFrom.find` on
+`/authelia/user-password-hashes`, keyed by username, with a `transform` rewrite
+turning each into `user_<name>_hash`. Adding a user is a hash in Infisical plus
+an entry in the `users_database.yml` template.
+
+Three things bite when editing those templates:
+
+- A Go template cannot reference a field starting with a digit, so a username
+  like `149segolte` must arrive as `user_149segolte_hash`; `.149segolte_...`
+  will not parse. This is why the rewrite prefixes rather than using the bare
+  name.
+- A PEM must go into a block scalar with `nindent`. In a quoted scalar YAML
+  folds its newlines into spaces, which parses cleanly and yields an unusable
+  key.
+- Prefer a `transform` rewrite over `regexp`. A regexp target needs `${1}`,
+  which Flux's envsubst then tries to resolve as a variable named `1` and fails
+  the whole build; `transform` has no `$` to escape.
+
+The template renders all or nothing, so a mistake anywhere drops `oidc.yml`
+from the Secret — and a missing config file is fatal to Authelia, which gates
+every route. Test template edits before pushing them.
+
+### The Flux UI config
+
+`web.config` and `web.configSecretName` are mutually exclusive, and the Secret
+must hold a whole `config.yaml`, so a client secret would drag the entire
+config out of git. The ExternalSecret composes it instead. Impersonation maps
+`claims.preferred_username` and `claims.groups`, so tokens have to carry both.
 
 ## Verify
 
@@ -177,11 +240,9 @@ two processes writing one SQLite file.
 
 ## Next
 
-- Authelia's built-in OIDC provider, with the Flux UI and Technitium as
-  clients. It needs no new component — a config block, an HMAC secret, a JWKS
-  key and one client each.
-- `flux-web-viewers` stays on `view` until then: port-forward bypasses Authelia
-  entirely, so that binding is what an unauthenticated port-forward gets, and
-  `edit` is only safe once the UI authenticates users itself.
+- `flux-web-viewers` is now dead weight: the UI authenticates users itself and
+  impersonates their real groups, so RBAC should bind those instead.
+- Technitium's SSO settings apply on a rebuild only; the running instance is
+  configured in its UI ([technitium](technitium.md)).
 - The tunnel reaches Traefik on the same entrypoint, so public traffic is gated
   by these same rules — anything that must stay public needs a bypass rule.
