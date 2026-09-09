@@ -25,10 +25,30 @@ spec:
       containers:
         - name: technitium
           image: technitium/dns-server:15.4.0
-          # DNS_SERVER_* is read only when /etc/dns holds no config — first run only.
+          # First-run only, like everything DNS_SERVER_*: inert against the
+          # existing store. Rebuild to configure.
           env:
             - name: DNS_SERVER_ADMIN_PASSWORD_FILE
               value: /run/secrets/technitium/password
+            - name: DNS_SERVER_SSO_ENABLED
+              value: "true"
+            - name: DNS_SERVER_SSO_AUTHORITY
+              value: https://auth.${DOMAIN}
+            - name: DNS_SERVER_SSO_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: technitium-user-config
+                  key: sso_client_id
+            - name: DNS_SERVER_SSO_CLIENT_SECRET_FILE
+              value: /run/secrets/technitium/sso_client_secret
+            - name: DNS_SERVER_SSO_SCOPES
+              value: openid,profile,groups
+            - name: DNS_SERVER_SSO_ALLOW_SIGNUP
+              value: "false"
+            - name: DNS_SERVER_SSO_ALLOW_SIGNUP_ONLY_FOR_MAPPED_USERS
+              value: "true"
+            - name: DNS_SERVER_SSO_GROUP_MAP
+              value: admins:Administrators
           ports:
             - name: dns-udp
               containerPort: 53
@@ -67,10 +87,12 @@ spec:
             claimName: technitium
         - name: admin
           secret:
-            secretName: technitium-admin
+            secretName: technitium-user-config
             items:
               - key: password
                 path: password
+              - key: sso_client_secret
+                path: sso_client_secret
         - name: logs
           emptyDir:
             sizeLimit: 1Gi

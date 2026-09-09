@@ -17,14 +17,9 @@ spec:
   values:
     web:
       enabled: true
-      config:
-        baseURL: https://flux.${DOMAIN}
-        authentication:
-          type: Anonymous
-          anonymous:
-            username: flux-web-anonymous
-            groups:
-              - flux-web-viewers
+      # `config` and `configSecretName` are mutually exclusive, so the client
+      # secret forces the whole config out of here.
+      configSecretName: flux-web-config
       rbac:
         createRoles: true
         createAggregation: true

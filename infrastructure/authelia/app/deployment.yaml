@@ -24,7 +24,10 @@ spec:
       containers:
         - name: authelia
           image: docker.io/authelia/authelia:4.39
-          args: ["--config", "/config/configuration.yml"]
+          # oidc.yml is composed by the ExternalSecret. Authelia merges the two
+          # files and a section must not appear in both, so configuration.yml
+          # has no identity_providers block.
+          args: ["--config", "/config/configuration.yml,/secrets/oidc.yml"]
           env:
             - name: AUTHELIA_SESSION_SECRET_FILE
               value: /secrets/session_secret
