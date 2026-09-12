@@ -16,30 +16,6 @@ pages:
             autofocus: true
             search-engine: google
 
-          - type: split-column
-            max-columns: 3
-            widgets:
-              - type: server-stats
-                servers:
-                  # The host, through glance-agent. $${HOST_IP} is escaped past
-                  # Flux's templating for glance.
-                  - type: remote
-                    name: mini-homelab
-                    url: http://$${HOST_IP}:27973
-              - type: clock
-                hour-format: 24h
-                timezones:
-                  - timezone: US/Pacific
-                    label: East Coast
-                  - timezone: Etc/UTC
-                    label: UTC
-                  - timezone: Asia/Kolkata
-                    label: India
-              - type: weather
-                location: ${LOCATION}
-                hour-format: 24h
-                show-area-name: true
-
           - type: monitor
             cache: 1m
             title: Services
@@ -57,3 +33,28 @@ pages:
                 links:
                   - title: whoami
                     url: https://whoami.${DOMAIN}
+
+      - size: small
+        widgets:
+          - type: server-stats
+            servers:
+              # The host, through glance-agent. $${HOST_IP} is escaped past
+              # Flux's templating for glance.
+              - type: remote
+                name: mini-homelab
+                url: http://$${HOST_IP}:27973
+
+          - type: clock
+            hour-format: 24h
+            timezones:
+              - timezone: US/Pacific
+                label: East Coast
+              - timezone: Etc/UTC
+                label: UTC
+              - timezone: Asia/Kolkata
+                label: India
+
+          - type: weather
+            location: ${LOCATION}
+            hour-format: 24h
+            show-area-name: true
