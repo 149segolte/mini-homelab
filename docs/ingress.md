@@ -15,6 +15,11 @@ rather than replaced: `web` redirects to `websecure`, JSON access logs, and the
 Authelia middleware on the `websecure` entrypoint so every route is
 authenticated by default ([auth](auth.md)).
 
+The dashboard is served at `traefik.${DOMAIN}` by the chart's own IngressRoute.
+`api@internal` is a Traefik service rather than a Kubernetes one, so no plain
+Ingress can reach it; TLS and the Authelia middleware still come from the
+entrypoint, so it carries neither.
+
 Host ports were dropped deliberately — Traefik is reached through its Service,
 which keeps it inside the `restricted` profile ([admission](admission.md)).
 
@@ -49,6 +54,7 @@ are managed in Cloudflare, outside this repo.
 | `whoami.` | smoke test — `one_factor`, so it stays usable |
 | `auth.` | Authelia ([auth](auth.md)) |
 | `flux.` | Flux UI — anonymous auth impersonating a group bound to `view`, plus `system:discovery` and `system:basic-user`, which impersonation does not inherit |
+| `traefik.` | Traefik dashboard — chart IngressRoute onto `api@internal` |
 | `dns.`, `doh.` | Technitium — **no public record** ([technitium](technitium.md)) |
 
 `dns.` and `doh.` have no record deliberately: Technitium's recursion ACL is

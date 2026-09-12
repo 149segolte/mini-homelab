@@ -17,6 +17,13 @@ spec:
       kubernetesCRD:
         allowCrossNamespace: true
 
+    ingressRoute:
+      dashboard:
+        enabled: true
+        matchRule: Host(`traefik.${DOMAIN}`)
+        entryPoints:
+          - websecure
+
     logs:
       access:
         enabled: true

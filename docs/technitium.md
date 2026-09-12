@@ -137,6 +137,7 @@ every service shares 172.19.149.1, so a PTR could only name one of them.
 | `auth.${DOMAIN}` | primary | `@` A | 172.19.149.1 |
 | `whoami.${DOMAIN}` | primary | `@` A | 172.19.149.1 |
 | `flux.${DOMAIN}` | primary | `@` A | 172.19.149.1 |
+| `traefik.${DOMAIN}` | primary | `@` A | 172.19.149.1 |
 | `mini.${DOMAIN}` | primary | `@` A | 172.19.149.1 |
 
 Always 172.19.149.1. Home-AP clients reach it directly; tailnet clients reach
