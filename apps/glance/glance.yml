@@ -22,10 +22,13 @@ pages:
             sites:
               - title: Flux Operator
                 url: https://flux.${DOMAIN}
+                check-url: http://flux-operator.flux-system.svc.cluster.local:9080
               - title: Technitium DNS
                 url: https://dns.${DOMAIN}
+                check-url: http://technitium.technitium.svc.cluster.local:5380
               - title: Authelia Gateway
                 url: https://auth.${DOMAIN}
+                check-url: http://authelia.authelia.svc.cluster.local:9091/api/health
 
           - type: bookmarks
             groups:
@@ -33,6 +36,8 @@ pages:
                 links:
                   - title: whoami
                     url: https://whoami.${DOMAIN}
+                  - title: cloudflare tunnels
+                    url: https://dash.cloudflare.com/?to=/:account/tunnels
 
       - size: small
         widgets:
