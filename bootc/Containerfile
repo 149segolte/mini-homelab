@@ -2,7 +2,6 @@
 
 ARG COREDNS_VERSION=1.14.6
 ARG GLANCE_AGENT_VERSION=v0.1.0
-ARG K3S_VERSION=v1.36.3+k3s1
 
 FROM docker.io/coredns/coredns:${COREDNS_VERSION} AS coredns
 FROM docker.io/glanceapp/agent:${GLANCE_AGENT_VERSION} AS glance-agent
@@ -33,6 +32,8 @@ RUN dnf -y install \
 
 RUN systemctl enable firewalld \
  && sed -i 's/^DefaultZone=.*/DefaultZone=drop/' /etc/firewalld/firewalld.conf
+
+ARG K3S_VERSION=v1.36.3+k3s1
 
 RUN curl -fsSL -o /usr/bin/k3s \
     "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION//+/%2B}/k3s-arm64" \
