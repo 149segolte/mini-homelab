@@ -29,7 +29,7 @@ pages:
               - type: clock
                 hour-format: 24h
                 timezones:
-                  - timezone: America/Pacific
+                  - timezone: US/Pacific
                     label: East Coast
                   - timezone: Etc/UTC
                     label: UTC
