@@ -1,0 +1,59 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/not-first/glance-schema/master/schema.json
+server:
+  proxied: true
+
+theme:
+  disable-picker: true
+
+pages:
+  - name: Home
+    width: slim
+    center-vertically: true
+    columns:
+      - size: full
+        widgets:
+          - type: search
+            autofocus: true
+            search-engine: google
+
+          - type: split-column
+            max-columns: 3
+            widgets:
+              - type: server-stats
+                servers:
+                  # The host, through glance-agent. $${HOST_IP} is escaped past
+                  # Flux's templating for glance.
+                  - type: remote
+                    name: mini-homelab
+                    url: http://$${HOST_IP}:27973
+              - type: clock
+                hour-format: 24h
+                timezones:
+                  - timezone: America/Pacific
+                    label: East Coast
+                  - timezone: Etc/UTC
+                    label: UTC
+                  - timezone: India/Kolkata
+                    label: India
+              - type: weather
+                location: ${LOCATION}
+                hour-format: 24h
+                show-area-name: true
+
+          - type: monitor
+            cache: 1m
+            title: Services
+            sites:
+              - title: Flux Operator
+                url: https://flux.${DOMAIN}
+              - title: Technitium DNS
+                url: https://dns.${DOMAIN}
+              - title: Authelia Gateway
+                url: https://auth.${DOMAIN}
+
+          - type: bookmarks
+            groups:
+              - title: Cluster
+                links:
+                  - title: whoami
+                    url: https://whoami.${DOMAIN}

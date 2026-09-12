@@ -1,0 +1,9 @@
+server:
+  host: 172.19.150.1
+  port: 27973
+
+system:
+  # cpu-temp-sensor is inferred when unset. `glance-agent sensors:print` lists
+  # the names if the guess is wrong.
+  cpu-temp-sensor:
+  hide-mountpoints-by-default: false

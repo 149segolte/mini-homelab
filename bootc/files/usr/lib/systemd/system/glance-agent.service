@@ -1,0 +1,14 @@
+[Unit]
+Description=Glance Agent
+After=network.target
+StartLimitIntervalSec=5min
+StartLimitBurst=3
+
+[Service]
+ExecStart=/usr/bin/glance-agent --config /usr/lib/glance-agent/agent.yml
+Restart=always
+RestartSec=2
+DynamicUser=yes
+
+[Install]
+WantedBy=multi-user.target

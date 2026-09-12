@@ -8,7 +8,7 @@ Everything transits the Pi: upstream client, both APs, router, resolver.
 | `admin`     | `wlan-adm`, 2.4GHz | 172.19.150.0/24    | ssh, dns, dhcp, 6443   | `ext`        |
 | `home`      | `wlan-usb`, 5GHz   | 172.19.149.0/24    | dns, dhcp, http/s      | `ext`, `k8s` |
 | `tailscale` | `tailscale0`       | tailnet            | ssh, dns, http/s, 6443 | `ext`, `k8s` |
-| `k8s`       | matched by source  | 10.42/16, 10.43/16 | —                      | —            |
+| `k8s`       | matched by source  | 10.42/16, 10.43/16 | everything             | —            |
 
 `ext` is `DROP` and egress only. `k8s` matches on source address, so it holds
 whatever the CNI names its links. Forwarding is one firewalld policy file per
