@@ -33,7 +33,7 @@ pages:
                     label: East Coast
                   - timezone: Etc/UTC
                     label: UTC
-                  - timezone: India/Kolkata
+                  - timezone: Asia/Kolkata
                     label: India
               - type: weather
                 location: ${LOCATION}
