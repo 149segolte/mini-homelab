@@ -6,4 +6,13 @@ system:
   # cpu-temp-sensor is inferred when unset. `glance-agent sensors:print` lists
   # the names if the guess is wrong.
   cpu-temp-sensor:
-  hide-mountpoints-by-default: false
+  hide-mountpoints-by-default: true
+  mountpoints:
+    "/var/external":
+      hide: false
+    "/var":
+      hide: false
+    "/sysroot":
+      hide: false
+    "/boot":
+      hide: false
