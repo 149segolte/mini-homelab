@@ -249,7 +249,7 @@ def _policy_files(deployment: Path) -> tuple[Path, Path] | None:
     """The target's file_contexts and compiled policy, or None if absent.
 
     setfiles validates every context in the spec against a policy, and the
-    running kernel's lacks types only the image defines — k3s_data_t, say.
+    running kernel's lacks types only the image defines, such as k3s_data_t.
     """
     policy = "targeted"
     config = deployment / "etc" / "selinux" / "config"

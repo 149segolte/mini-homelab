@@ -76,7 +76,7 @@ storage:
     path: /data/db.sqlite3
 
 # Filesystem rather than SMTP. Second-factor enrolment still needs its one-time
-# link, so read it out of the pod: see docs/auth.md.
+# link, so read it out of the pod: see docs/services.md.
 notifier:
   filesystem:
     filename: /data/notification.txt

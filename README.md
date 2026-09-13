@@ -4,16 +4,16 @@ Declarative container services host on a Raspberry Pi 4B (8 GB).
 
 Two layers, split by how often they change:
 
-- **Host** — a bootc image, built in CI. Applied with `bootc upgrade` + reboot.
-- **Workloads** — k3s driven by Flux from this repo. No reboot.
+- **Host**: a bootc image, built in CI. Applied with `bootc upgrade` + reboot.
+- **Workloads**: k3s driven by Flux from this repo. No reboot.
 
 Removing something from either layer removes it from the running system.
 Nothing is managed imperatively.
 
 ## Docs
 
-[docs/](docs/) — host image, install, networking, k3s, Flux, and each cluster
-component.
+[docs/](docs/) holds four pages, one per layer: host, cluster, services, and
+the Technitium settings that cannot live in git.
 
 ## Layout
 
@@ -42,7 +42,7 @@ no task runner to install. `./build.py --help` is always the current list.
 ./build.py push quay.io/149segolte  # tag and push an existing build
 ```
 
-Installing to a fresh disk is three commands — see [install](docs/install.md).
+Installing to a fresh disk is three commands; see [host](docs/host.md#installation).
 
 ## Decisions
 
@@ -55,8 +55,8 @@ Installing to a fresh disk is three commands — see [install](docs/install.md).
 | ghcr.io **and** quay.io | build once, push twice; either can serve an upgrade |
 | PSA at the apiserver, Kyverno above it | a floor that cannot fail open, under policy that can |
 
-Config lives in `/usr` wherever possible — versioned with the image, unable to
-drift. `/etc` only for genuinely machine-local state. Secrets, SSH keys
+Config lives in `/usr` wherever possible, versioned with the image and unable
+to drift. `/etc` only for genuinely machine-local state. Secrets, SSH keys
 included, are overlaid at install time and never baked into the image.
 
 ## License

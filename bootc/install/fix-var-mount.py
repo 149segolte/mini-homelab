@@ -45,7 +45,7 @@ def _seeded_var(target: Path) -> Path:
     """Where bootc seeded /var.
 
     On an ostree target that is ostree/deploy/<stateroot>/var, shared across
-    deployments — not <target>/var, and not the deployment's own var/, which is
+    deployments, not <target>/var, and not the deployment's own var/, which is
     an empty mount point. A target without the hierarchy is taken at face value.
     """
     candidates = sorted(target.glob("ostree/deploy/*/var"))
@@ -113,7 +113,7 @@ def main() -> None:
     # the directory is empty, so a failed umount cannot cost us the partition.
     staged = Path(tempfile.mkdtemp(prefix="fix-var-mount-"))
     # Mounted at <staged>/var, not <staged>, so `setfiles -r <staged>` sees the
-    # paths as /var/... — which is what file_contexts is written against.
+    # paths as /var/..., which is what file_contexts is written against.
     mountpoint = staged / "var"
     mountpoint.mkdir()
     try:
