@@ -5,6 +5,11 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
+    # Restrict load balancer node ports to explicitly defined values.
+    service:
+      spec:
+        allocateLoadBalancerNodePorts: false
+
     # One wildcard served as the default certificate, so no Ingress needs a
     # `tls` block and no secret has to be replicated per namespace.
     tlsStore:
