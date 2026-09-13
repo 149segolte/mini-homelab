@@ -34,9 +34,11 @@ pages:
             groups:
               - title: Cluster
                 links:
-                  - title: whoami
+                  - title: Traefik Dashboard
+                    url: https://traefik.${DOMAIN}
+                  - title: whoami (echo server)
                     url: https://whoami.${DOMAIN}
-                  - title: cloudflare tunnels
+                  - title: Cloudflare Tunnels
                     url: https://dash.cloudflare.com/?to=/:account/tunnels
 
       - size: small
