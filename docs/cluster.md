@@ -103,11 +103,11 @@ No secret is committed. Host secrets are overlaid at install time
 ([Host](host.md#install-time-overlay)). Cluster secrets come from Infisical
 through External Secrets Operator, which installs in three ordered steps:
 
-| Step | Source | Notes |
-| --- | --- | --- |
-| `crds` | Upstream git at tag `v2.10.0` | CRDs only; `ignore` rules fetch just `config/crds/bases` |
-| `operator` | Helm chart `2.10.0` | `installCRDs: false` |
-| `crs` | This repository | The `ClusterSecretStore` |
+| Step       | Source                        | Notes                                                    |
+| ---------- | ----------------------------- | -------------------------------------------------------- |
+| `crds`     | Upstream git at tag `v2.10.0` | CRDs only; `ignore` rules fetch just `config/crds/bases` |
+| `operator` | Helm chart `2.10.0`           | `installCRDs: false`                                     |
+| `crs`      | This repository               | The `ClusterSecretStore`                                 |
 
 Taking the CRDs from git with `wait: true` means the operator never starts
 against a half-established API. This follows ESO's own Flux recipe and works
@@ -126,7 +126,7 @@ consuming pod still has to restart to pick it up.
 
 ### Config files built from secrets
 
-When a component needs a configuration *file* that contains a secret, the
+When a component needs a configuration _file_ that contains a secret, the
 ExternalSecret builds the file. `spec.target.template` with `engineVersion: v2`
 keeps the structure in git and interpolates one single-line Infisical value per
 secret. Authelia and the Flux UI both use this
@@ -148,10 +148,10 @@ Three constraints apply:
 
 Two layers enforce pod security:
 
-| Layer | Where | Enforces | Failure mode |
-| --- | --- | --- | --- |
-| Pod Security Admission | Apiserver, in-tree | `baseline` | Cannot fail; no webhook and no network |
-| Kyverno | Admission webhook | `restricted`, plus mutation | Admission stops for governed namespaces |
+| Layer                  | Where              | Enforces                    | Failure mode                            |
+| ---------------------- | ------------------ | --------------------------- | --------------------------------------- |
+| Pod Security Admission | Apiserver, in-tree | `baseline`                  | Cannot fail; no webhook and no network  |
+| Kyverno                | Admission webhook  | `restricted`, plus mutation | Admission stops for governed namespaces |
 
 PSA is the floor, configured through `admission-control-config-file`
 ([Host](host.md#k3s)) with `enforce: baseline`, `audit` and `warn` at

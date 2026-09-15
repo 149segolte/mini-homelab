@@ -242,10 +242,11 @@ rejects a `hostPath` volume in a pod spec and does not inspect claims. Two
 properties of the host mount sit outside version control and have to hold
 before the pod starts:
 
-| Requirement                                              | Reason                                                                                                                                  |
-| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `context=system_u:object_r:container_file_t:s0` at mount | An in-tree volume plugin reports no `seLinuxMount`, so the runtime relabels the volume recursively under a level it picks per container |
-| Writable by UID 1000                                     | The pod sets no `fsGroup`, which would rewrite group ownership across the partition on every mount                                      |
+- The mount carries `context=system_u:object_r:container_file_t:s0`. An in-tree
+  volume plugin reports no `seLinuxMount`, so the runtime would otherwise
+  relabel the volume recursively under a level it picks per container.
+- The partition is writable by UID 1000. The pod sets no `fsGroup`, which would
+  rewrite group ownership across the partition on every mount.
 
 The header named by `idp-h-key` comes from `cluster-secrets`, a Secret beside
 `cluster-vars` in the Kustomization's `substituteFrom`. Every app stops

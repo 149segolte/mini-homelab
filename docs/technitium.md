@@ -32,10 +32,10 @@ Do not create a zone for `${DOMAIN}` itself. That makes Technitium
 authoritative for the whole domain and shadows every public name under it,
 including `whoami.` and `flux.`, until each is recreated by hand.
 
-Which clients can reach those names depends on the zone they are in. Traefik is
-exposed only to `home` and `tailscale`, not to `admin`
-([Host](host.md#networking)), so port-forward remains the route from the admin
-AP. Expect a browser warning until the wildcard certificate issues
+Traefik accepts from every internal zone ([Host](host.md#networking)), so the
+UI is reachable once its name resolves. During a rebuild it does not, because
+the record lives in the zone being restored, so port-forward is the route until
+section 3. Expect a browser warning until the wildcard certificate issues
 ([Services](services.md#tls)).
 
 ## 1. Hard constraints
@@ -43,15 +43,21 @@ AP. Expect a browser warning until the wildcard certificate issues
 An incorrect value here affects DNS for the whole machine, and several of these
 fail silently.
 
-| Setting | Value | Reason |
-| --- | --- | --- |
-| Forwarders | `https://1.1.1.1/dns-query`, `https://8.8.8.8/dns-query` | IP literals only. A hostname would have to be resolved first, and the pod resolves via 172.19.150.1 -> dnsmasq -> CoreDNS -> 127.0.0.1:5335, which is Technitium itself. Both certificates carry IP SANs, so TLS still validates. The `https://cloudflare-dns.com/dns-query (1.1.1.1)` form pins a bootstrap IP if a hostname is preferred |
-| DNS service port | `53` | The `hostPort` mapping targets it |
-| Web service port | `5380` | The Service and Ingress target it |
-| Recursion | `UseSpecifiedNetworkACL`, ACL `10.42.0.0/16` | Not "private networks". The two look equivalent, but everything arriving through Traefik carries a pod source address |
-| Reverse proxy addresses | `10.42.0.0/16` | Real client addresses in the logs |
-| DoT / DoQ | Off | Nothing routes to 853 |
-| DoH | Plain HTTP on 80 in-pod | Traefik terminates TLS |
+- **Forwarders**: `https://1.1.1.1/dns-query` and
+  `https://8.8.8.8/dns-query`. IP literals only. A hostname would have to be
+  resolved first, and the pod resolves via 172.19.150.1 -> dnsmasq -> CoreDNS
+  -> 127.0.0.1:5335, which is Technitium itself. Both certificates carry IP
+  SANs, so TLS still validates. The `https://cloudflare-dns.com/dns-query
+(1.1.1.1)` form pins a bootstrap IP if a hostname is preferred.
+- **DNS service port**: `53`, which the `hostPort` mapping targets.
+- **Web service port**: `5380`, which the Service and Ingress target.
+- **Recursion**: `UseSpecifiedNetworkACL` with ACL `10.42.0.0/16`, not "private
+  networks". The two look equivalent, but everything arriving through Traefik
+  carries a pod source address.
+- **Reverse proxy addresses**: `10.42.0.0/16`, for real client addresses in the
+  logs.
+- **DoT / DoQ**: off. Nothing routes to 853.
+- **DoH**: plain HTTP on 80 in-pod. Traefik terminates TLS.
 
 Changing the DNS service port is the least visible of these failures. DNS keeps
 working, because CoreDNS falls through to 1.1.1.1, and only ad blocking stops.
@@ -73,15 +79,15 @@ Technitium authenticates against Authelia over OIDC
 environment block applies to a fresh store only; the running instance is
 configured in Settings and must hold these values:
 
-| Setting | Value |
-| --- | --- |
-| Authority | `https://auth.${DOMAIN}` |
-| Client ID and secret | `authelia/oidc/clients/technitium/{id,secret}` |
-| Scopes | `openid,profile,groups`, matching the client's granted scopes |
+| Setting               | Value                                                                   |
+| --------------------- | ----------------------------------------------------------------------- |
+| Authority             | `https://auth.${DOMAIN}`                                                |
+| Client ID and secret  | `authelia/oidc/clients/technitium/{id,secret}`                          |
+| Scopes                | `openid,profile,groups`, matching the client's granted scopes           |
 | Client authentication | `client_secret_post`, which the Authelia client is registered to expect |
-| Allow signup | On |
-| Only for mapped users | On |
-| Group map | `admins:Administrators` |
+| Allow signup          | On                                                                      |
+| Only for mapped users | On                                                                      |
+| Group map             | `admins:Administrators`                                                 |
 
 Both signup flags are needed together. Allow-signup is the gate and
 only-for-mapped-users narrows it to users carrying a mapped group. With the
@@ -98,16 +104,20 @@ These are safe to change. A wrong value looks odd rather than breaking
 resolution. Tab names track Technitium's UI rather than this repository and may
 have moved.
 
-| Setting | Value | Where |
-| --- | --- | --- |
-| Server domain | `dns.${DOMAIN}` | Settings > General |
-| Forwarder protocol | `Https` | Settings > Proxy & Forwarders |
-| Blocking | Enabled | Settings > Blocking |
-| Blocklist URLs | `https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts` | Settings > Blocking |
-| Blocklist refresh | Daily | Settings > Blocking |
-| In-memory stats | On | Settings > Logging |
-| Query logging | As needed | Settings > Logging. `/var/log/technitium` is an `emptyDir`, so logs do not survive a restart |
-| DNSSEC validation | On | Settings > Recursion |
+| Setting            | Value           | Where                         |
+| ------------------ | --------------- | ----------------------------- |
+| Server domain      | `dns.${DOMAIN}` | Settings > General            |
+| Forwarder protocol | `Https`         | Settings > Proxy & Forwarders |
+| Blocking           | Enabled         | Settings > Blocking           |
+| Blocklist refresh  | Daily           | Settings > Blocking           |
+| In-memory stats    | On              | Settings > Logging            |
+| Query logging      | As needed       | Settings > Logging            |
+| DNSSEC validation  | On              | Settings > Recursion          |
+
+The blocklist is HaGeZi's Multi PRO list at
+`https://raw.githubusercontent.com/hagezi/dns-blocklists/main/domains/pro.txt`,
+set under Settings > Blocking. `/var/log/technitium` is an `emptyDir`, so
+query logs do not survive a restart.
 
 Blocklists download again on a lost volume, so expect a few minutes of
 unblocked queries after a rebuild.
@@ -117,28 +127,21 @@ unblocked queries after a rebuild.
 Zones cannot be set by environment variable, only through the UI or the API, so
 this section is their only backup. Record each zone as it is created.
 
-Each internal name gets its own primary zone with a single A record at the
-apex. Longest match wins, so every other name under `${DOMAIN}` still forwards
-out. The failure mode inverts usefully: a missing zone resolves publicly and
-takes the tunnel, which is slower but works.
+Each internal name gets its own primary zone holding a single `@` A record at
+172.19.149.1, TTL 3600 and no expiry:
 
-Defaults apply unless stated: TTL 3600, no expiry. There is no reverse DNS,
-because every service shares 172.19.149.1 and a PTR could name only one of
-them.
+`dns.`, `doh.`, `auth.`, `files.`, `whoami.`, `flux.`, `traefik.` and `mini.`,
+each under `${DOMAIN}`.
 
-| Zone | Type | Record | Value |
-| --- | --- | --- | --- |
-| `dns.${DOMAIN}` | Primary | `@` A | 172.19.149.1 |
-| `auth.${DOMAIN}` | Primary | `@` A | 172.19.149.1 |
-| `whoami.${DOMAIN}` | Primary | `@` A | 172.19.149.1 |
-| `flux.${DOMAIN}` | Primary | `@` A | 172.19.149.1 |
-| `traefik.${DOMAIN}` | Primary | `@` A | 172.19.149.1 |
-| `mini.${DOMAIN}` | Primary | `@` A | 172.19.149.1 |
+Longest match wins, so every other name under `${DOMAIN}` still forwards out.
+The failure mode inverts usefully: a missing zone resolves publicly and takes
+the tunnel, which is slower but works. `files.` is the exception, because the
+tunnel carries HTTP alone and SFTP on 3922 then has no route at all.
 
-The address is always 172.19.149.1. Home AP clients reach it directly, and
-tailnet clients reach it over the advertised `/32` and resolve through split
-DNS pointed at the same address ([Host](host.md#tailscale)). Admin AP clients
-cannot reach http/s at all and stay on port-forward.
+Home AP clients reach 172.19.149.1 directly, admin AP clients through the Pi,
+and tailnet clients over the advertised `/32` with split DNS pointed at the
+same address ([Host](host.md#tailscale)). There is no reverse DNS, because
+every service shares the address and a PTR could name only one of them.
 
 Anything hosted at Cloudflare rather than on the Pi gets no zone here.
 

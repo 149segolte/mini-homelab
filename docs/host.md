@@ -12,15 +12,17 @@ followed by a reboot. The base image is `quay.io/fedora/fedora-bootc:44`.
 
 The image adds the following to the base:
 
-| Package | Purpose |
-| --- | --- |
-| `NetworkManager-wifi`, `wpa_supplicant` | Both access points |
-| `brcmfmac-firmware`, `mt7xxx-firmware` | Onboard 2.4 GHz and USB 5 GHz radios |
-| `dnsmasq` | Required by NetworkManager `method=shared`. Nothing configures it directly |
-| `chrony` | The Pi has no real-time clock |
-| `firewalld` | Zone-based firewall, default zone `drop` |
-| `tailscale` | Remote access, independent of the cluster |
-| `k3s`, `k3s-selinux` | The cluster itself |
+| Package                                 | Purpose                                    |
+| --------------------------------------- | ------------------------------------------ |
+| `NetworkManager-wifi`, `wpa_supplicant` | Both access points                         |
+| `brcmfmac-firmware`, `mt7xxx-firmware`  | Onboard 2.4 GHz and USB 5 GHz radios       |
+| `dnsmasq`                               | Required by NetworkManager `method=shared` |
+| `chrony`                                | The Pi has no real-time clock              |
+| `firewalld`                             | Zone-based firewall, default zone `drop`   |
+| `tailscale`                             | Remote access, independent of the cluster  |
+| `k3s`, `k3s-selinux`                    | The cluster itself                         |
+
+Nothing in this repository configures dnsmasq; NetworkManager owns it.
 
 CoreDNS and the Glance agent are copied from their upstream container images.
 Neither is packaged by Fedora.
@@ -38,11 +40,12 @@ are the script's public functions, and `./build.py --help` lists them.
 
 ### Continuous integration
 
-| Workflow | Trigger | Result |
-| --- | --- | --- |
-| `bootc-ci` | Push or PR touching `bootc/`, `build.py`, or the workflows | Builds only |
-| `bootc-deployment` | A successful `bootc-ci`, or manual dispatch | Builds and pushes to both registries |
-| `cleanup-ghcr` | Weekly | Prunes images over 30 days old, keeps 5 tagged, never `latest` |
+- `bootc-ci` builds, and nothing more, on a push or PR touching `bootc/`,
+  `build.py` or the workflows.
+- `bootc-deployment` builds and pushes to both registries after a successful
+  `bootc-ci`, or on manual dispatch.
+- `cleanup-ghcr` runs weekly, pruning images over 30 days old. It keeps five
+  tagged images and never removes `latest`.
 
 Builds from `main` publish `latest`. Any other branch publishes the short
 commit SHA.
@@ -60,12 +63,12 @@ network access.
 Installation applies to a fresh disk only. Partition and mount the target
 first:
 
-| # | Mount | Size | Filesystem | Contents |
-| - | --- | --- | --- | --- |
-| 1 | ESP | 1 GiB | FAT32 | Pi firmware and U-Boot |
-| 2 | `/boot` | 2 GiB | ext4 | Kernel and initramfs, one set per deployment |
-| 3 | `/` | 8 GiB or more | ext4 | Deployments; two are kept |
-| 4 | `/var` | Remainder | ext4 | Container storage, k3s data, logs |
+| #   | Mount   | Size          | Filesystem | Contents                                     |
+| --- | ------- | ------------- | ---------- | -------------------------------------------- |
+| 1   | ESP     | 1 GiB         | FAT32      | Pi firmware and U-Boot                       |
+| 2   | `/boot` | 2 GiB         | ext4       | Kernel and initramfs, one set per deployment |
+| 3   | `/`     | 8 GiB or more | ext4       | Deployments; two are kept                    |
+| 4   | `/var`  | Remainder     | ext4       | Container storage, k3s data, logs            |
 
 Mount the root partition at `mounted_at`, `/boot` beneath it, and the ESP at
 `boot/efi`. Leave `/var` unmounted. `bootc install to-filesystem` fails if
@@ -110,11 +113,11 @@ schema. `[vars]` provides substitution values, and `KEY=VALUE` arguments to
 
 Destinations are written as the booted system sees them, then mapped onto disk:
 
-| Booted path | On disk |
-| --- | --- |
-| `/boot/*` | The target directly |
-| `/var/*` | `ostree/deploy/<stateroot>/var/*`, shared across deployments |
-| `/etc/*` | `ostree/deploy/<stateroot>/deploy/<checksum>.<serial>/etc/*` |
+| Booted path | On disk                                                      |
+| ----------- | ------------------------------------------------------------ |
+| `/boot/*`   | The target directly                                          |
+| `/var/*`    | `ostree/deploy/<stateroot>/var/*`, shared across deployments |
+| `/etc/*`    | `ostree/deploy/<stateroot>/deploy/<checksum>.<serial>/etc/*` |
 
 These are the only legal destinations. `/usr` belongs to the image, and the
 remaining top-level directories are symlinks into `/var`. Every entry is
@@ -204,12 +207,15 @@ installer and adds two directives:
 
 `/etc/rancher/k3s/config.yaml` sets:
 
-| Setting | Value | Reason |
-| --- | --- | --- |
-| `node-ip` | 172.19.150.1 | The admin AP address, hosted by the Pi itself. Upstream DHCP disappears with upstream, and a node advertising an unroutable address is worse than one on a link that is always up |
-| `resolv-conf` | A file naming 172.19.150.1 | CoreDNS binds loopback, which a pod cannot reach |
-| `kubelet-arg` | `config=kubelet.config` | 30 s shutdown grace, 10 s for critical pods, so an upgrade reboot drains |
-| `kube-apiserver-arg` | `admission-control-config-file=psa.yaml` | Pod Security Admission ([Cluster](cluster.md#admission-control)) |
+- `node-ip` is 172.19.150.1, the admin AP address hosted by the Pi itself.
+  Upstream DHCP disappears with upstream, and a node advertising an unroutable
+  address is worse than one on a link that is always up.
+- `resolv-conf` names a file holding 172.19.150.1. CoreDNS binds loopback,
+  which a pod cannot reach.
+- `kubelet-arg` sets `config=kubelet.config`: a 30 s shutdown grace and 10 s
+  for critical pods, so an upgrade reboot drains.
+- `kube-apiserver-arg` sets `admission-control-config-file=psa.yaml` for Pod
+  Security Admission ([Cluster](cluster.md#admission-control)).
 
 The unit and these files are the entire interface to k3s; service parameters
 are otherwise left at their defaults. `k3s-killall.sh` is included for stops
