@@ -90,3 +90,10 @@ dest = "/etc/NetworkManager/system-connections/home-ap.nmconnection"
 mode = "0600"
 owner = "root:root"
 template = true
+
+[[entry]]
+source = "networking/coredns-hosts"
+dest = "/etc/coredns/hosts"
+mode = "0644"
+owner = "root:root"
+template = true

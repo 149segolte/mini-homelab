@@ -179,6 +179,12 @@ dnsmasq forwards without caching, and CoreDNS is the only cache in the chain.
 CoreDNS binds to loopback, so k3s is pointed at 172.19.150.1 instead; a pod's
 loopback is its own.
 
+The host's own name is answered by CoreDNS from `/etc/coredns/hosts`, which the
+`hosts` plugin serves ahead of `forward`. It is not a Technitium zone, because
+ssh has to work when the cluster does not. The Corefile ships in the image and
+the hosts file is written at install time, so the record tracks the configured
+hostname.
+
 127.0.0.1:5335 is Technitium, a cluster workload with a `hostPort` bound to
 loopback ([Technitium](technitium.md)). CoreDNS health-checks it, so while that
 pod is down the host keeps resolving through the public forwarders. A cluster

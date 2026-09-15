@@ -2,6 +2,9 @@
     bind 127.0.0.1
     errors
     cache 30
+    hosts /etc/coredns/hosts {
+        fallthrough
+    }
     forward . 127.0.0.1:5335 1.1.1.1 8.8.8.8 {
         policy sequential
         health_check 5s
