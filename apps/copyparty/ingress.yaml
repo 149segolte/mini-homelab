@@ -5,8 +5,6 @@ metadata:
   namespace: copyparty
   annotations:
     traefik.ingress.kubernetes.io/router.middlewares: copyparty-idp-key@kubernetescrd
-    traefik.ingress.kubernetes.io/service.serversscheme: "https"
-    traefik.ingress.kubernetes.io/service.serverstransport: copyparty-skip-verify-transport@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:

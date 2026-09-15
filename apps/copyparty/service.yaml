@@ -3,6 +3,9 @@ kind: Service
 metadata:
   name: copyparty
   namespace: copyparty
+  annotations:
+    traefik.ingress.kubernetes.io/service.serversscheme: "https"
+    traefik.ingress.kubernetes.io/service.serverstransport: copyparty-skip-verify-transport@kubernetescrd
 spec:
   selector:
     app: copyparty
