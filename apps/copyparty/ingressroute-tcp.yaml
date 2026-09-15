@@ -1,0 +1,16 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRouteTCP
+metadata:
+  name: copyparty-sftp
+  namespace: copyparty
+spec:
+  # The entrypoint is declared in Traefik's HelmChartConfig
+  # (infrastructure/traefik). SSH carries no SNI, so the rule matches any
+  # connection and the entrypoint itself is the routing decision.
+  entryPoints:
+    - sftp
+  routes:
+    - match: HostSNI(`*`)
+      services:
+        - name: copyparty
+          port: 3922

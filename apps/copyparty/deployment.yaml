@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: copyparty
+  namespace: copyparty
+spec:
+  replicas: 1
+  # RWO volumes and a SQLite index: the new pod cannot mount until the old one
+  # releases them, and two pods would write to one database.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: copyparty
+  template:
+    metadata:
+      labels:
+        app: copyparty
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        # The image has no USER declared. external storage on host is 1000:1000.
+        runAsUser: 1000
+        runAsGroup: 1000
+        # No fsGroup. It would recursively chgrp the mounted partition on
+        # every start, rewriting ownership of existing files.
+      containers:
+        - name: copyparty
+          image: docker.io/copyparty/ac:1.20.23
+          args: ["-c", "/cfg/copyparty.conf"]
+          ports:
+            - name: http
+              containerPort: 3923
+            - name: sftp
+              containerPort: 3922
+          # A request carrying no identity header is unauthorised, so an HTTP
+          # probe would have to be granted access to pass.
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: config
+              mountPath: /cfg
+              readOnly: true
+            - name: data
+              mountPath: /w
+            - name: hist
+              mountPath: /hist
+      volumes:
+        - name: config
+          configMap:
+            name: copyparty
+        - name: data
+          persistentVolumeClaim:
+            claimName: copyparty-external
+        - name: hist
+          persistentVolumeClaim:
+            claimName: copyparty-hist

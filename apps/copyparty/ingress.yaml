@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: copyparty
+  namespace: copyparty
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: copyparty-idp-key@kubernetescrd
+    traefik.ingress.kubernetes.io/service.serversscheme: "https"
+    traefik.ingress.kubernetes.io/service.serverstransport: copyparty-skip-verify-transport@kubernetescrd
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: files.${DOMAIN}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: copyparty
+                port:
+                  name: http

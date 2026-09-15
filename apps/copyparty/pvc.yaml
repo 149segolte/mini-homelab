@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: copyparty-external
+  namespace: copyparty
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: external
+  # Named explicitly so the claim can bind to nothing else.
+  volumeName: copyparty-external
+  resources:
+    requests:
+      storage: 800Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: copyparty-hist
+  namespace: copyparty
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 8Gi

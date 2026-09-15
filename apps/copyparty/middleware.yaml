@@ -1,0 +1,11 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: idp-key
+  namespace: copyparty
+spec:
+  headers:
+    customRequestHeaders:
+      # The header name is itself the secret; copyparty checks that it is
+      # present and ignores the value.
+      "${COPYPARTY_IDP_HEADER}": "1"

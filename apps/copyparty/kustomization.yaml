@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - pv.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - middleware.yaml
+  - servers-transport.yaml
+  - ingress.yaml
+  - ingressroute-tcp.yaml
+
+configMapGenerator:
+  - name: copyparty
+    namespace: copyparty
+    files:
+      - copyparty.conf

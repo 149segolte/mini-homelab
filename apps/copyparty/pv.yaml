@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: copyparty-external
+spec:
+  # Nominal. A local volume has no provisioner and nothing enforces capacity;
+  # the figure only has to match the claim for the two to bind.
+  capacity:
+    storage: 800Gi
+  accessModes: [ReadWriteOnce]
+  # The partition outlives the claim. Deleting the PVC leaves the data and the
+  # PV behind, Released rather than reclaimed.
+  persistentVolumeReclaimPolicy: Retain
+  # Not local-path, so the default provisioner leaves this claim alone. No
+  # StorageClass object of this name exists or is needed for a static bind.
+  storageClassName: external
+  local:
+    path: /var/external
+  # Required on a local volume. Matching the role rather than the node name
+  # keeps the installed hostname out of the manifest.
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists

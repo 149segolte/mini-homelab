@@ -46,3 +46,10 @@ spec:
         http:
           middlewares:
             - authelia-authelia@kubernetescrd
+      # Raw TCP for copyparty's SFTP. Authelia middleware doesn't apply to this.
+      sftp:
+        port: 3922
+        exposedPort: 3922
+        protocol: TCP
+        expose:
+          default: true

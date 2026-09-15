@@ -11,14 +11,15 @@ Hostnames are built from `${DOMAIN}` in `cluster-vars`. Public records are held
 in Cloudflare and internal ones in Technitium ([Technitium](technitium.md));
 neither set lives in this repository.
 
-| Host | Service |
-| --- | --- |
-| `mini.` | Glance dashboard |
-| `whoami.` | Smoke test, `one_factor` so that it stays usable |
-| `auth.` | Authelia |
-| `flux.` | Flux UI, authenticating over OIDC |
-| `traefik.` | Traefik dashboard |
-| `dns.`, `doh.` | Technitium, with no public record |
+| Host           | Service                                           |
+| -------------- | ------------------------------------------------- |
+| `mini.`        | Glance dashboard                                  |
+| `files.`       | Copyparty, `one_factor` so that sync clients work |
+| `whoami.`      | Smoke test, `one_factor` so that it stays usable  |
+| `auth.`        | Authelia                                          |
+| `flux.`        | Flux UI, authenticating over OIDC                 |
+| `traefik.`     | Traefik dashboard                                 |
+| `dns.`, `doh.` | Technitium, with no public record                 |
 
 `dns.` and `doh.` have no public record by design. Technitium's recursion ACL
 is `10.42.0.0/16`, and every request arriving through Traefik carries a pod
@@ -102,13 +103,14 @@ omission.
 
 `access_control` is the entire public surface. The first matching rule wins:
 
-| Rule | Policy | Reason |
-| --- | --- | --- |
-| `auth.` | bypass | The portal would otherwise sit behind itself and redirect in a loop |
-| `doh.` `^/dns-query` | bypass | DoH clients cannot follow a browser redirect |
-| `whoami.` | one_factor | Password only, so it remains a usable smoke test |
-| `*.${DOMAIN}` | two_factor | Everything else |
-| (default) | deny | An unmatched host is refused rather than passed through |
+| Rule                 | Policy     | Reason                                                               |
+| -------------------- | ---------- | -------------------------------------------------------------------- |
+| `auth.`              | bypass     | The portal would otherwise sit behind itself and redirect in a loop  |
+| `doh.` `^/dns-query` | bypass     | DoH clients cannot follow a browser redirect                         |
+| `whoami.`            | one_factor | Password only, so it remains a usable smoke test                     |
+| `files.`             | one_factor | WebDAV and sync clients send a password and cannot follow a redirect |
+| `*.${DOMAIN}`        | two_factor | Everything else                                                      |
+| (default)            | deny       | An unmatched host is refused rather than passed through              |
 
 `*.${DOMAIN}` matches a single label, so the apex and any deeper name fall
 through to `deny` and need rules of their own. The Cloudflare tunnel reaches
@@ -116,8 +118,9 @@ the same entrypoint, so public traffic is subject to these rules too.
 
 The entrypoint references the middleware as `authelia-authelia@kubernetescrd`,
 which requires `providers.kubernetesCRD.allowCrossNamespace` because the
-Middleware is in `authelia` and Traefik is in `kube-system`. Per-Ingress
-annotations still work and take precedence over the entrypoint default.
+Middleware is in `authelia` and Traefik is in `kube-system`. A per-Ingress
+annotation adds to the entrypoint's list rather than replacing it, and the
+entrypoint's middlewares run first, so a route cannot drop Authelia.
 
 The forward-auth endpoint declares `HeaderProxyAuthorization` before
 `CookieSession`, so API and CLI clients authenticate with a header instead of
@@ -198,10 +201,10 @@ Everything on `websecure` fails closed, including `auth.` itself, because its
 bypass rule is evaluated by Authelia. This follows from placing the middleware
 on the entrypoint.
 
-| Condition | Effect |
-| --- | --- |
-| Pod down, Middleware present | The forward-auth call fails and each request returns 5xx |
-| Middleware missing | The entrypoint reference cannot resolve and every `websecure` router breaks |
+| Condition                    | Effect                                                                      |
+| ---------------------------- | --------------------------------------------------------------------------- |
+| Pod down, Middleware present | The forward-auth call fails and each request returns 5xx                    |
+| Middleware missing           | The entrypoint reference cannot resolve and every `websecure` router breaks |
 
 The second condition cannot be worked around from an Ingress, since the
 reference is in Traefik's static configuration. It needs the `HelmChartConfig`
@@ -227,3 +230,30 @@ variable; unescaped, it fails the Kustomization as an unset variable.
 
 The `monitor` widget checks in-cluster Service URLs rather than public ones,
 which would all answer with a redirect to Authelia.
+
+## Copyparty
+
+Copyparty serves `/var/external` at `files.`. SFTP listens on 3922 through a
+Traefik entrypoint of its own, and the tunnel carries HTTP alone, so SFTP
+reaches the LAN and the tailnet only.
+
+The partition is mounted through a static `local` PV. The restricted profile
+rejects a `hostPath` volume in a pod spec and does not inspect claims. Two
+properties of the host mount sit outside version control and have to hold
+before the pod starts:
+
+| Requirement                                              | Reason                                                                                                                                  |
+| -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `context=system_u:object_r:container_file_t:s0` at mount | An in-tree volume plugin reports no `seLinuxMount`, so the runtime relabels the volume recursively under a level it picks per container |
+| Writable by UID 1000                                     | The pod sets no `fsGroup`, which would rewrite group ownership across the partition on every mount                                      |
+
+The header named by `idp-h-key` comes from `cluster-secrets`, a Secret beside
+`cluster-vars` in the Kustomization's `substituteFrom`. Every app stops
+reconciling while that key is absent.
+
+An SFTP user signs in through the browser once before copyparty holds an
+account to match the key against, and copyparty keeps that account after
+Authelia drops the user. Removing the key withdraws SFTP access.
+
+Cloudflare caps a proxied request body at 100 MB. Browser uploads are chunked
+below it; a WebDAV `PUT` sends one request and fails above it.
