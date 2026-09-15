@@ -5,5 +5,8 @@
   <service name="ssh" />
   <service name="dhcp" />
   <service name="dns" />
+  <service name="http" />
+  <service name="https" />
+  <port protocol="tcp" port="3922" />
   <port protocol="tcp" port="6443" />
 </zone>

@@ -134,22 +134,31 @@ drop-in resets the condition and `add-templates` touches the deployment's
 All traffic transits the Pi: it is the upstream client, both access points, the
 router and the resolver.
 
-| Zone | Interface | Network | Accepts | Forwards to |
-| --- | --- | --- | --- | --- |
-| `ext` | `eth-ext`, onboard | Upstream DHCP | Nothing | Nothing |
-| `admin` | `wlan-adm`, 2.4 GHz | 172.19.150.0/24 | ssh, dns, dhcp, 6443 | `ext` |
-| `home` | `wlan-usb`, 5 GHz | 172.19.149.0/24 | dns, dhcp, http/s | `ext`, `k8s` |
-| `tailscale` | `tailscale0` | Tailnet | ssh, dns, http/s, 6443 | `ext`, `k8s` |
-| `k8s` | Matched by source | 10.42/16, 10.43/16 | Everything | Nothing |
+| Zone        | Interface           | Network            |
+| ----------- | ------------------- | ------------------ |
+| `ext`       | `eth-ext`, onboard  | Upstream DHCP      |
+| `admin`     | `wlan-adm`, 2.4 GHz | 172.19.150.0/24    |
+| `home`      | `wlan-usb`, 5 GHz   | 172.19.149.0/24    |
+| `tailscale` | `tailscale0`        | Tailnet            |
+| `k8s`       | Matched by source   | 10.42/16, 10.43/16 |
 
-`ext` has target `DROP` and is egress only, so nothing upstream is forwarded
-in. `k8s` matches on source address rather than interface, so it covers
-whatever the CNI names its links, and its target is `ACCEPT`. Pods therefore
-reach host services such as the Glance agent without a port being listed.
+### Firewall
 
-Forwarding is declared as one firewalld policy per direction, and unlisted
-pairs do not forward. `admin` has no path to `k8s`; administration happens
-through the apiserver on 6443.
+- `home`: accepts dns, http/s and 3922.
+- `admin`: accepts dns, http/s, 3922, ssh, and 6443.
+- `tailscale`: accepts dns, http/s, 3922, ssh, and 6443.
+- `ext`: has target `DROP` and neither accepts nor forwards anything.
+- `k8s`: matches on source address rather than interface, and its target is
+  `ACCEPT`, so pods reach host services such as the Glance agent without a port
+  being listed.
+
+Forwarding is one firewalld policy per direction. `admin`, `home` and
+`tailscale` forward to `ext` and `k8s`; the other two forward nowhere.
+
+Zones do not govern 80, 443 and 3922. Traefik's Service is a LoadBalancer, so
+k3s ServiceLB holds those host ports in an `svclb-traefik` pod, and their DNAT
+runs before the input path a zone filters. `loadBalancerSourceRanges` on the
+Service restricts them instead ([Services](services.md)).
 
 Interfaces are named by driver in `systemd/network/*.link` so the names survive
 probe order. NetworkManager runs with `no-auto-default=*`, which makes every

@@ -7,4 +7,5 @@
   <service name="dns" />
   <service name="http" />
   <service name="https" />
+  <port protocol="tcp" port="3922" />
 </zone>

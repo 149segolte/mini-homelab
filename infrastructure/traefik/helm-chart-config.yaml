@@ -9,6 +9,10 @@ spec:
     service:
       spec:
         allocateLoadBalancerNodePorts: false
+        loadBalancerSourceRanges:
+          - 172.19.149.0/24
+          - 172.19.150.0/24
+          - 100.64.0.0/10
 
     # One wildcard served as the default certificate, so no Ingress needs a
     # `tls` block and no secret has to be replicated per namespace.

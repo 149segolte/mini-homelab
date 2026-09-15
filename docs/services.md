@@ -32,8 +32,12 @@ rather than replaced. The configuration sets a redirect from `web` to
 `websecure`, JSON access logs, and the Authelia middleware on the `websecure`
 entrypoint.
 
-Host ports are not used. Traefik is reached through its Service, which keeps it
-inside the `restricted` Pod Security profile.
+The Traefik pod declares no host ports, which keeps it inside the `restricted`
+Pod Security profile. Its Service is a LoadBalancer, so k3s ServiceLB holds 80,
+443 and 3922 on the host in an `svclb-traefik` pod instead. Firewalld zones do
+not see that traffic ([Host](host.md#networking)), so
+`loadBalancerSourceRanges` limits it to the two access points and the tailnet.
+cloudflared is unaffected, since it connects to the ClusterIP.
 
 The dashboard is exposed by the chart's own IngressRoute. `api@internal` is a
 Traefik service rather than a Kubernetes one, so no ordinary Ingress can reach
