@@ -37,15 +37,17 @@ spec:
               containerPort: 3923
             - name: sftp
               containerPort: 3922
-          # A request carrying no identity header is unauthorised, so an HTTP
-          # probe would have to be granted access to pass.
           readinessProbe:
-            tcpSocket:
+            httpGet:
+              path: /
               port: http
+              scheme: HTTPS
             initialDelaySeconds: 5
           livenessProbe:
-            tcpSocket:
+            httpGet:
+              path: /
               port: http
+              scheme: HTTPS
             initialDelaySeconds: 30
             periodSeconds: 30
           volumeMounts:
