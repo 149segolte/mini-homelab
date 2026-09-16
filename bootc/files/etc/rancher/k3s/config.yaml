@@ -1,3 +1,7 @@
+# ServiceLB publishes host ports through a DNAT. For firewalld to be effective
+# we use strict forward ports instead.
+disable:
+  - servicelb
 node-ip: 172.19.150.1
 resolv-conf: /etc/rancher/k3s/resolv.conf
 kubelet-arg:

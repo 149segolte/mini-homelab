@@ -5,14 +5,15 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
-    # Restrict load balancer node ports to explicitly defined values.
+    # ServiceLB is disabled on the node. The host ports are published by the
+    # `mini-ingress` firewalld policy, which forwards to this address.
     service:
+      type: ClusterIP
       spec:
-        allocateLoadBalancerNodePorts: false
-        loadBalancerSourceRanges:
-          - 172.19.149.0/24
-          - 172.19.150.0/24
-          - 100.64.0.0/10
+        clusterIP: 10.43.0.80
+
+    deployment:
+      replicas: 2
 
     # One wildcard served as the default certificate, so no Ingress needs a
     # `tls` block and no secret has to be replicated per namespace.
