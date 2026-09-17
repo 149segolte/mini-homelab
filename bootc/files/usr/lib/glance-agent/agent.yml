@@ -1,5 +1,6 @@
 server:
-  host: 172.19.150.1
+  # Bind to the cluster IP to avoid external access
+  host: 10.42.0.1
   port: 27973
 
 system:
