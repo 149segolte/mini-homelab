@@ -110,10 +110,8 @@ through External Secrets Operator, which installs in three ordered steps:
 | `crs`      | This repository               | The `ClusterSecretStore`                                 |
 
 Taking the CRDs from git with `wait: true` means the operator never starts
-against a half-established API. This follows ESO's own Flux recipe and works
-around a race in it, rather than being a pattern the rest of the repository
-repeats. The chart version and the CRD tag are pinned to the same release and
-have to be bumped together.
+against a half-established API. The chart version and the CRD tag are pinned to
+the same release and have to be bumped together.
 
 `installCRDs` is the chart's real toggle. `crds.create: false` looks plausible,
 is not rejected, and silently installs a second copy of the CRDs.
@@ -176,8 +174,7 @@ excludes the namespace, and a second rule re-applies `restricted` there without
 the `Host Ports` control. The exclusion is required: both rules would otherwise
 evaluate and the stricter one would still block the pod. `Host Ports` is a
 container-level control, so Kyverno rejects the policy at admission unless an
-image pattern accompanies it. Both mistakes appear as a `dry-run failed` on the
-Kustomization rather than at pod creation.
+image pattern accompanies it.
 
 ### failurePolicy: Fail
 
@@ -186,13 +183,10 @@ passed. The namespaces that must come up during an outage never consult it:
 `kube-system` and `flux-system` are excluded by
 `config.webhooks.namespaceSelector`, and `kyverno` by the chart's own default.
 
-`flux-system` had to be added to that selector. The policies exclude it in
-their own `exclude` blocks, but a policy-level exclusion still requires Kyverno
-to be reachable before it can be consulted, which would place the recovery
-mechanism behind the failure.
+The policies also exclude `flux-system` in their own `exclude` blocks, but a
+policy-level exclusion still requires Kyverno to be reachable before it can be
+consulted, which would place the recovery mechanism behind the failure.
 
 While Kyverno is down, governed namespaces cannot schedule pods, external
 access included. Recovery paths remain open throughout: kubectl over the admin
 AP, Flux reconciling a fix, or deleting the webhook configurations by hand.
-Switching to `Ignore` leaves PSA's `baseline` underneath, which is what makes
-the choice reversible.

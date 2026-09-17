@@ -28,10 +28,6 @@ To make the name work afterwards, create a zone per hostname: `dns.${DOMAIN}`
 as its own primary zone with an A record at the apex pointing at 172.19.149.1,
 and the same for `doh.${DOMAIN}` if DoH by name is wanted. Record them in section 3.
 
-Do not create a zone for `${DOMAIN}` itself. That makes Technitium
-authoritative for the whole domain and shadows every public name under it,
-including `whoami.` and `flux.`, until each is recreated by hand.
-
 Traefik accepts from every internal zone ([Host](host.md#networking)), so the
 UI is reachable once its name resolves. During a rebuild it does not, because
 the record lives in the zone being restored, so port-forward is the route until
@@ -66,8 +62,7 @@ Two rules apply that are not settings:
 
 - `dns.` and `doh.` get no public DNS record. The recursion ACL is
   `10.42.0.0/16` and every request through Traefik has a pod source address, so
-  a reachable `doh.` host is an open resolver. Before exposing it, confirm
-  whether reverse proxy addresses also feed the recursion ACL.
+  a reachable `doh.` host is an open resolver.
 - The admin password is not changed in the UI. The environment variable applies
   on first run only, so a UI change wins permanently and the Infisical value
   goes stale.

@@ -33,11 +33,17 @@ rather than replaced. The configuration sets a redirect from `web` to
 entrypoint.
 
 The Traefik pod declares no host ports, which keeps it inside the `restricted`
-Pod Security profile. Its Service is a LoadBalancer, so k3s ServiceLB holds 80,
-443 and 3922 on the host in an `svclb-traefik` pod instead. Firewalld zones do
-not see that traffic ([Host](host.md#networking)), so
-`loadBalancerSourceRanges` limits it to the two access points and the tailnet.
-cloudflared is unaffected, since it connects to the ClusterIP.
+Pod Security profile. Its Service is a ClusterIP listing both access point
+addresses as `externalIPs`, so kube-proxy DNATs 80, 443 and 3922 to it
+([Host](host.md#k3s)). cloudflared uses the ClusterIP directly.
+
+`externalIPs` are reachable from any interface that can route to them, so access
+is bounded by the pre-DNAT filter instead ([Host](host.md#pre-dnat-filter)).
+Both access points and the tailnet reach these three ports equally.
+
+Nothing binds a host port, so the Deployment runs two replicas and a rolling
+update never takes the only listener down. Traefik runs no ACME of its own, so
+the replicas share no state.
 
 The dashboard is exposed by the chart's own IngressRoute. `api@internal` is a
 Traefik service rather than a Kubernetes one, so no ordinary Ingress can reach
@@ -71,11 +77,10 @@ wildcard held in `kube-system` reaches nothing else unless the secret is
 replicated into every namespace. As the default certificate it needs no `tls:`
 block on any Ingress at all.
 
-Only one `TLSStore` may be named `default` in a cluster, so this is a one-time
-decision. A per-namespace certificate added later needs an explicit `tls:`
-block, which then takes precedence. While `wildcard-tls` is absent Traefik
-falls back to a generated self-signed certificate, so there is no hard ordering
-against cert-manager.
+Only one `TLSStore` may be named `default` in a cluster, and an Ingress with
+its own `tls:` block takes precedence over it. While `wildcard-tls` is absent
+Traefik falls back to a generated self-signed certificate, so there is no hard
+ordering against cert-manager.
 
 The Certificate lives in `kube-system` alongside Traefik and the TLSStore, but
 is defined under `cert-manager/issuers/` for ordering. That Kustomization waits
@@ -224,13 +229,14 @@ write to one SQLite file.
 
 Glance serves the dashboard at `mini.`. A `server-stats` widget of `type:
 local` would report the pod, so host metrics come from `glance-agent`, a host
-service in the image ([Host](host.md#contents)), which the pod reaches at the
-node address.
+service in the image ([Host](host.md#contents)).
 
-Glance performs its own `${...}` substitution, so `glance.yml` contains two
-layers. `${DOMAIN}` and `${LOCATION}` are substituted by Flux. `$${HOST_IP}` is
-escaped past Flux and expanded by Glance from a downward API environment
-variable; unescaped, it fails the Kustomization as an unset variable.
+The agent binds 10.42.0.1, the host's own address on `cni0`, so only pods reach
+it. The URL is a literal, because no downward API field carries that address.
+
+`glance.yml` is substituted twice. `${DOMAIN}` and `${LOCATION}` are Flux's;
+Glance performs its own `${...}` pass afterwards, so anything meant for Glance
+is escaped as `$${...}`.
 
 The `monitor` widget checks in-cluster Service URLs rather than public ones,
 which would all answer with a redirect to Authelia.

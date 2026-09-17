@@ -49,7 +49,7 @@ Installing to a fresh disk is three commands; see [host](docs/host.md#installati
 | Decision                               | Why                                                               |
 | -------------------------------------- | ----------------------------------------------------------------- |
 | U-Boot / DeviceTree boot, not EDK2     | EDK2 puts onboard wifi out of scope                               |
-| firewalld, not raw nftables            | zone model, and k3s documents a supported firewalld configuration |
+| firewalld for host traffic             | zone model, and k3s documents a supported firewalld configuration |
 | `--node-ip` on the admin address       | survives upstream loss without reporting an unroutable address    |
 | `bootc upgrade` without `--apply`      | stages the image automatically; reboot stays deliberate           |
 | ghcr.io **and** quay.io                | build once, push twice; either can serve an upgrade               |

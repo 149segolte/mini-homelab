@@ -6,7 +6,9 @@ followed by a reboot. The base image is `quay.io/fedora/fedora-bootc:44`.
 
 `bootc/files/` is copied to `/` during the build. Configuration lives under
 `/usr` wherever the software allows it, so that it is versioned with the image.
-`/etc` holds machine-local files only, written at install time.
+`/etc` holds what the software insists on finding there, plus machine-local
+files written at install time. Files shipped there are still versioned;
+ostree's three-way merge keeps a local edit across an upgrade.
 
 ## Contents
 
@@ -140,34 +142,59 @@ router and the resolver.
 | `admin`     | `wlan-adm`, 2.4 GHz | 172.19.150.0/24    |
 | `home`      | `wlan-usb`, 5 GHz   | 172.19.149.0/24    |
 | `tailscale` | `tailscale0`        | Tailnet            |
-| `k8s`       | Matched by source   | 10.42/16, 10.43/16 |
-
-### Firewall
-
-- `home`: accepts dns, http/s and 3922.
-- `admin`: accepts dns, http/s, 3922, ssh, and 6443.
-- `tailscale`: accepts dns, http/s, 3922, ssh, and 6443.
-- `ext`: has target `DROP` and neither accepts nor forwards anything.
-- `k8s`: matches on source address rather than interface, and its target is
-  `ACCEPT`, so pods reach host services such as the Glance agent without a port
-  being listed.
-
-Forwarding is one firewalld policy per direction. `admin`, `home` and
-`tailscale` forward to `ext` and `k8s`; the other two forward nowhere.
-
-Zones do not govern 80, 443 and 3922. Traefik's Service is a LoadBalancer, so
-k3s ServiceLB holds those host ports in an `svclb-traefik` pod, and their DNAT
-runs before the input path a zone filters. `loadBalancerSourceRanges` on the
-Service restricts them instead ([Services](services.md)).
+| `k8s`       | `cni0`, `flannel.1` | 10.42/16, 10.43/16 |
 
 Interfaces are named by driver in `systemd/network/*.link` so the names survive
 probe order. NetworkManager runs with `no-auto-default=*`, which makes every
 connection a declared keyfile, and it leaves `cni0` and `flannel*` alone.
 Keyfiles must be mode `0600` or NetworkManager ignores them.
 
-Both access points use `method=shared`, so each runs its own dnsmasq and NAT.
-The `upstream` connection sets `ignore-auto-dns`, which stops the upstream
-router's resolver from displacing the local one.
+Both access points use `method=shared`, so each runs its own dnsmasq and NAT,
+which the `to-ext` policy's masquerade overlaps. The `upstream` connection sets
+`ignore-auto-dns`, which stops the upstream router's resolver from displacing
+the local one.
+
+firewalld governs traffic that terminates on the host. An nftables table
+hooked ahead of it governs traffic that does not.
+
+### Firewall
+
+Every zone has target `DROP`, so a port is reachable only if listed.
+
+- `home`: dhcp and dns.
+- `admin`: dhcp, dns, ssh and 6443.
+- `tailscale`: dns, ssh and 6443.
+- `ext`: nothing.
+- `k8s`: target `ACCEPT`, matched by both source address and the `cni0` and
+  `flannel.1` interfaces, with `forward` set so pods reach each other.
+
+One policy, `to-ext`, accepts and masquerades from `admin`, `home`, `tailscale`
+and `k8s` towards `ext`. There is no policy towards `k8s`; nothing outside the
+cluster may address it.
+
+None of the ports the cluster serves appear above. Traefik's Service is a
+ClusterIP carrying `externalIPs`, so kube-proxy DNATs 80, 443 and 3922 in
+`prerouting` ([Services](services.md#traefik)). That traffic is forwarded to a
+pod rather than delivered to the host, so no zone evaluates it and firewalld
+accepts it.
+
+### Pre-DNAT filter
+
+`preroute-priority.service` loads `/usr/share/nftables/preroute-priority.nft`
+into two tables of its own, hooked at `prerouting` priorities -140 and -130:
+after `conntrack` at -200 and ahead of `dstnat` at -100, the only window where
+the original destination is still intact.
+
+- `block_external` drops every new connection arriving on `eth-ext`.
+- `block_outside_cluster_access` drops traffic addressed to 10.42/16 or
+  10.43/16 unless it came from there, so pod and service addresses are reachable
+  from inside the cluster only. The DNAT above is unaffected, because at that
+  point the destination is still the host's own address.
+
+Neither chain sees host-originated traffic, which does not traverse
+`prerouting`. Both accept `established` and `related` first, or replies to the
+host's own connections would be dropped. `PartOf=firewalld.service` restarts
+the unit with firewalld; a reload does not need it.
 
 ### DNS
 
@@ -222,6 +249,8 @@ installer and adds two directives:
 
 `/etc/rancher/k3s/config.yaml` sets:
 
+- `disable` drops ServiceLB; Traefik's Service carries `externalIPs` instead
+  ([Services](services.md#traefik)).
 - `node-ip` is 172.19.150.1, the admin AP address hosted by the Pi itself.
   Upstream DHCP disappears with upstream, and a node advertising an unroutable
   address is worse than one on a link that is always up.
