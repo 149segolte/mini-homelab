@@ -10,17 +10,7 @@ spec:
     service:
       spec:
         type: ClusterIP
-        externalIPs: [172.19.150.1, 172.19.149.1]
-        ports:
-          - port: 80
-            targetPort: 80
-            protocol: TCP
-          - port: 443
-            targetPort: 443
-            protocol: TCP
-          - port: 3922
-            targetPort: 3922
-            protocol: TCP
+        externalIPs: [172.19.149.1, 172.19.150.1]
 
     deployment:
       replicas: 2
