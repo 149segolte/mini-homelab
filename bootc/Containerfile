@@ -30,11 +30,8 @@ RUN dnf -y install \
  && dnf clean all \
  && rm -rf /var/cache/* /var/lib/dnf /var/log/* /run/dnf /tmp/*
 
-# StrictForwardPorts=yes stops firewalld accepting DNAT directly. Without it
-# every container-published port is allowed regardless of zone or policy.
 RUN systemctl enable firewalld \
- && sed -i 's/^DefaultZone=.*/DefaultZone=drop/' /etc/firewalld/firewalld.conf \
- && sed -i 's/^StrictForwardPorts=.*/StrictForwardPorts=yes/' /etc/firewalld/firewalld.conf
+ && sed -i 's/^DefaultZone=.*/DefaultZone=drop/' /etc/firewalld/firewalld.conf
 
 ARG K3S_VERSION=v1.36.3+k3s1
 
