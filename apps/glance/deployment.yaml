@@ -20,12 +20,6 @@ spec:
       containers:
         - name: glance
           image: docker.io/glanceapp/glance:v0.8.6
-          env:
-            # glance-agent is a host service binding to admin interface.
-            - name: HOST_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.hostIP
           ports:
             - name: http
               containerPort: 8080

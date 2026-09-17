@@ -45,11 +45,10 @@ pages:
         widgets:
           - type: server-stats
             servers:
-              # The host, through glance-agent. $${HOST_IP} is escaped past
-              # Flux's templating for glance.
+              # The host, through glance-agent on the cni0 address.
               - type: remote
                 name: mini-homelab
-                url: http://$${HOST_IP}:27973
+                url: http://10.42.0.1:27973
 
           - type: clock
             hour-format: 24h
