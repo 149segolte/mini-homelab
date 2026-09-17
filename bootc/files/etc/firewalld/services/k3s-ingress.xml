@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<service>
-  <short>k3s-ingress</short>
-  <description>Port list for k3s ingress</description>
-  <port port="80" protocol="tcp" />
-  <port port="443" protocol="tcp" />
-  <port port="3922" protocol="tcp" />
-</service>
