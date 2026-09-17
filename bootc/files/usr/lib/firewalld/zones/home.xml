@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<zone>
+<zone target="DROP">
   <short>home</short>
   <description
     >5GHz AP for personal devices. Internet and k3s access only.</description>

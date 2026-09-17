@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<zone>
+<zone target="DROP">
   <short>tailscale</short>
   <description
     >Tailnet. Device restrictions live in Tailscale ACLs, not here.</description>
