@@ -5,7 +5,4 @@
     >5GHz AP for personal devices. Internet and k3s access only.</description>
   <service name="dhcp" />
   <service name="dns" />
-  <service name="http" />
-  <service name="https" />
-  <port protocol="tcp" port="3922" />
 </zone>

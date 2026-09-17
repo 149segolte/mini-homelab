@@ -4,10 +4,7 @@
   <description
     >Tailnet. Device restrictions live in Tailscale ACLs, not here.</description>
   <interface name="tailscale0" />
-  <service name="ssh" />
   <service name="dns" />
-  <service name="http" />
-  <service name="https" />
-  <port protocol="tcp" port="3922" />
+  <service name="ssh" />
   <port protocol="tcp" port="6443" />
 </zone>

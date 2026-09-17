@@ -2,11 +2,8 @@
 <zone>
   <short>admin</short>
   <description>Internal AP. Administrative access only.</description>
-  <service name="ssh" />
   <service name="dhcp" />
   <service name="dns" />
-  <service name="http" />
-  <service name="https" />
-  <port protocol="tcp" port="3922" />
+  <service name="ssh" />
   <port protocol="tcp" port="6443" />
 </zone>

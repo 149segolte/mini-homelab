@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<policy target="ACCEPT">
-  <short>admin-to-k8s</short>
-  <description>Admin access to Kubernetes services.</description>
-  <ingress-zone name="admin" />
-  <egress-zone name="k8s" />
-</policy>

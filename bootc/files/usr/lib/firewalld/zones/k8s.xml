@@ -2,6 +2,9 @@
 <zone target="ACCEPT">
   <short>k8s</short>
   <description>Cluster pod and service networks.</description>
+  <interface name="cni0" />
+  <interface name="flannel.1" />
   <source address="10.42.0.0/16" />
   <source address="10.43.0.0/16" />
+  <forward />
 </zone>

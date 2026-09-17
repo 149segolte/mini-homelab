@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<policy target="ACCEPT">
+  <short>to-ext</short>
+  <description>Allow all traffic to external networks.</description>
+  <ingress-zone name="admin" />
+  <ingress-zone name="home" />
+  <ingress-zone name="tailscale" />
+  <ingress-zone name="k8s" />
+  <egress-zone name="ext" />
+  <masquerade />
+</policy>
