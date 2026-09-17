@@ -1,0 +1,30 @@
+table inet preroute_priority
+table ip preroute_priority
+delete table inet preroute_priority
+delete table ip preroute_priority
+
+table inet preroute_priority {
+    chain block_external {
+        type filter hook prerouting priority -140;
+        # Allow packets belonging to already established connections (replies)
+        ct state { established, related } accept
+        iifname "eth-ext" drop
+    }
+}
+
+table ip preroute_priority {
+    set cluster {
+        type ipv4_addr
+        flags interval
+        elements = { 10.42.0.0/16, 10.43.0.0/16 }
+    }
+
+    chain block_outside_cluster_access {
+        type filter hook prerouting priority -130;
+        # Allow packets belonging to already established connections (replies)
+        ct state { established, related } accept
+        ip daddr != @cluster accept
+        ip saddr @cluster accept
+        drop
+    }
+}

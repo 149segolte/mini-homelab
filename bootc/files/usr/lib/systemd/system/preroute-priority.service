@@ -1,0 +1,18 @@
+[Unit]
+Description=Pre-DNAT prerouting filter
+Documentation=man:nft(8)
+After=firewalld.service
+# firewalld leaves foreign tables alone on reload, but ensure clean slate
+PartOf=firewalld.service
+Before=k3s.service
+ConditionPathExists=/usr/share/nftables/preroute-priority.nft
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /usr/share/nftables/preroute-priority.nft
+ExecStop=-/usr/sbin/nft delete table inet preroute_priority
+ExecStop=-/usr/sbin/nft delete table ip preroute_priority
+
+[Install]
+WantedBy=multi-user.target

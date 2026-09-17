@@ -61,6 +61,7 @@ RUN chmod 0600 /usr/lib/NetworkManager/system-connections/*.nmconnection
 
 RUN systemctl enable chronyd.service \
     bootc-fetch-apply-updates.timer \
+    preroute-priority.service \
     coredns.service \
     glance-agent.service \
     tailscaled.service \
