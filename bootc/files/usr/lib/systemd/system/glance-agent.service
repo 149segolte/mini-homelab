@@ -1,6 +1,7 @@
 [Unit]
 Description=Glance Agent
 After=network.target
+After=k3s.service
 StartLimitIntervalSec=5min
 StartLimitBurst=3
 
