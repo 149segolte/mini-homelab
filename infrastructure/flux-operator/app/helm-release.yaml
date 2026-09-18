@@ -28,6 +28,8 @@ spec:
       ingress:
         enabled: true
         className: traefik
+        annotations:
+          external-dns.alpha.kubernetes.io/target: node.${DOMAIN}
         hosts:
           - host: flux.${DOMAIN}
             paths:
