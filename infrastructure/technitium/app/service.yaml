@@ -4,9 +4,19 @@ metadata:
   name: technitium
   namespace: technitium
 spec:
+  # Fixed because the host's CoreDNS forwards here.
+  clusterIP: 10.43.0.53
   selector:
     app: technitium
   ports:
+    - name: dns-udp
+      port: 53
+      protocol: UDP
+      targetPort: dns-udp
+    - name: dns-tcp
+      port: 53
+      protocol: TCP
+      targetPort: dns-tcp
     - name: http
       port: 5380
       targetPort: http

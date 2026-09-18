@@ -53,13 +53,9 @@ spec:
             - name: dns-udp
               containerPort: 53
               protocol: UDP
-              hostPort: 5335
-              hostIP: 127.0.0.1
             - name: dns-tcp
               containerPort: 53
               protocol: TCP
-              hostPort: 5335
-              hostIP: 127.0.0.1
             - name: http
               containerPort: 5380
             - name: doh
