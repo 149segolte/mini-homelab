@@ -8,3 +8,4 @@ resources:
   - authelia
   - cloudflared
   - technitium
+  - external-dns
