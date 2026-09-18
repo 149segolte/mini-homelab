@@ -30,7 +30,7 @@ spec:
     policy: sync
     registry: txt
     txtOwnerId: mini-homelab
-    txtPrefix: external-dns-
+    txtPrefix: zzz-external-dns-
     domainFilters:
       - ${DOMAIN}
     provider:
