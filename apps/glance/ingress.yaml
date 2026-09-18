@@ -4,7 +4,7 @@ metadata:
   name: glance
   namespace: glance
   annotations:
-    external-dns.alpha.kubernetes.io/target: node.${DOMAIN}
+    external-dns.kubernetes.io/target: node.${DOMAIN}
 spec:
   ingressClassName: traefik
   rules:

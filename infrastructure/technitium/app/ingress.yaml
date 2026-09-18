@@ -4,7 +4,7 @@ metadata:
   name: technitium
   namespace: technitium
   annotations:
-    external-dns.alpha.kubernetes.io/target: node.${DOMAIN}
+    external-dns.kubernetes.io/target: node.${DOMAIN}
 spec:
   ingressClassName: traefik
   rules:
