@@ -1,0 +1,29 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: external-dns
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://github.com/kubernetes-sigs/external-dns
+  ref:
+    tag: v0.22.0
+  # The directory also holds the DNSRecord CRD, which nothing here uses.
+  ignore: |
+    /*
+    !/config
+    /config/*
+    !/config/crd
+    /config/crd/*
+    !/config/crd/standard
+    /config/crd/standard/*
+    !/config/crd/standard/dnsendpoints.externaldns.k8s.io.yaml
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: external-dns
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://kubernetes-sigs.github.io/external-dns/

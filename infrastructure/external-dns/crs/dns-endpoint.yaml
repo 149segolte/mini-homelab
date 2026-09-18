@@ -1,12 +1,12 @@
 apiVersion: externaldns.k8s.io/v1alpha1
 kind: DNSEndpoint
 metadata:
-  name: primary-dns-endpoint
+  name: node
   namespace: external-dns
 spec:
   endpoints:
     - dnsName: node.${DOMAIN}
-      recordTTL: 300
       recordType: A
+      recordTTL: 300
       targets:
         - 172.19.149.1
