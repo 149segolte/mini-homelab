@@ -42,10 +42,10 @@ fail silently.
 - **Forwarders**: `https://1.1.1.1/dns-query` and
   `https://8.8.8.8/dns-query`. IP literals only. A hostname would have to be
   resolved first, and the pod resolves via 172.19.150.1 -> dnsmasq -> CoreDNS
-  -> 127.0.0.1:5335, which is Technitium itself. Both certificates carry IP
+  -> 10.43.0.53, which is Technitium itself. Both certificates carry IP
   SANs, so TLS still validates. The `https://cloudflare-dns.com/dns-query
 (1.1.1.1)` form pins a bootstrap IP if a hostname is preferred.
-- **DNS service port**: `53`, which the `hostPort` mapping targets.
+- **DNS service port**: `53`, which the Service targets.
 - **Web service port**: `5380`, which the Service and Ingress target.
 - **Recursion**: `UseSpecifiedNetworkACL` with ACL `10.42.0.0/16`, not "private
   networks". The two look equivalent, but everything arriving through Traefik
@@ -153,20 +153,11 @@ is unambiguously a certificate problem.
 ## Verifying
 
 ```bash
-sudo ss -lntup | grep 5335
-```
-
-The result should show `127.0.0.1` only. `0.0.0.0` means the CNI portmap plugin
-ignored `hostIP` and Technitium is reachable from both access points; block
-5335 in the `home` and `admin` zones ([Host](host.md#networking)) or return to
-loopback only.
-
-```bash
-dig @127.0.0.1 -p 5335 example.com +short     # Technitium directly
+dig @10.43.0.53 example.com +short            # Technitium directly
 dig @127.0.0.1 example.com +short             # through CoreDNS
 dig @127.0.0.1 doubleclick.net +short         # 0.0.0.0 once blocklists load
 ```
 
-The third command confirms that CoreDNS's health check promoted 5335 ahead of
-1.1.1.1 rather than silently staying with the public forwarder. Allow a few
-minutes for the blocklist.
+The third command confirms that CoreDNS is forwarding to Technitium rather than
+silently staying with the public forwarders. Allow a few minutes for the
+blocklist.

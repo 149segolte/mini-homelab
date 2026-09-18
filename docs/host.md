@@ -199,7 +199,7 @@ the unit with firewalld; a reload does not need it.
 ### DNS
 
 ```
-client -> dnsmasq (per AP, no cache) -> CoreDNS :53 -> 127.0.0.1:5335, then 1.1.1.1, 8.8.8.8
+client -> dnsmasq (per AP, no cache) -> CoreDNS :53 -> 10.43.0.53, then 1.1.1.1, 8.8.8.8
 ```
 
 dnsmasq forwards without caching, and CoreDNS is the only cache in the chain.
@@ -212,10 +212,11 @@ ssh has to work when the cluster does not. The Corefile ships in the image and
 the hosts file is written at install time, so the record tracks the configured
 hostname.
 
-127.0.0.1:5335 is Technitium, a cluster workload with a `hostPort` bound to
-loopback ([Technitium](technitium.md)). CoreDNS health-checks it, so while that
-pod is down the host keeps resolving through the public forwarders. A cluster
-outage costs ad blocking rather than DNS.
+10.43.0.53 is Technitium's Service, at a fixed address because the Corefile
+references it literally ([Technitium](technitium.md)). Nothing outside the
+cluster can address it ([pre-DNAT filter](#pre-dnat-filter)). CoreDNS
+health-checks it, so while the pod is down the host keeps resolving through the
+public forwarders. A cluster outage costs ad blocking rather than DNS.
 
 Technitium sits downstream of this chain, so its own forwarders must be IP
 literals. A hostname there resolves back through the chain into Technitium

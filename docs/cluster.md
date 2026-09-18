@@ -157,24 +157,13 @@ PSA is the floor, configured through `admission-control-config-file`
 through namespace labels because a default has to apply to namespaces nobody
 has labelled.
 
-`technitium` is the only namespace that lifts the floor, labelled `privileged`.
-Baseline disallows any non-zero `hostPort`, and PSA is all or nothing per
-namespace. Kyverno does the enforcing there instead, which is the reason for
-having two layers.
-
 Kyverno runs as its own tier, so it is live before anything it governs.
 `add-default-securitycontext` mutates pods outside the exempt namespaces and
 adds only what is missing; the `+(field)` anchor never overwrites.
 `validate-pod-security-restricted` then enforces `restricted`. Mutation runs
 first, so a workload that merely omits the boilerplate is corrected rather than
-rejected.
-
-`technitium` needs two rules rather than one relaxation. The broad rule
-excludes the namespace, and a second rule re-applies `restricted` there without
-the `Host Ports` control. The exclusion is required: both rules would otherwise
-evaluate and the stricter one would still block the pod. `Host Ports` is a
-container-level control, so Kyverno rejects the policy at admission unless an
-image pattern accompanies it.
+rejected. No namespace carries PSA labels of its own; `kube-system` and
+`flux-system` are excluded in the policies, and everything else is governed.
 
 ### failurePolicy: Fail
 
