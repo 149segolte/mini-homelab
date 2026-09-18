@@ -43,7 +43,7 @@ spec:
       - --rfc2136-tsig-secret-alg=hmac-sha256
       - --rfc2136-axfr
       - --rfc2136-batch-change-size=1
-      - --rfc2136-min-ttl=1h
+      - --rfc2136-min-ttl=5m
     env:
       - name: EXTERNAL_DNS_RFC2136_TSIG_SECRET
         valueFrom:
