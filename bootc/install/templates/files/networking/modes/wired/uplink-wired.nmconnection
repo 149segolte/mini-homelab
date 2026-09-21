@@ -1,5 +1,5 @@
 [connection]
-id=upstream
+id=uplink-wired
 type=ethernet
 interface-name=eth-ext
 autoconnect=true

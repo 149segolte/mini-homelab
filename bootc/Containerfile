@@ -56,11 +56,12 @@ RUN printf '%s\n' \
 
 COPY files/ /
 
-# NetworkManager only reads keyfiles with mode 0600
-RUN chmod 0600 /usr/lib/NetworkManager/system-connections/*.nmconnection
+RUN chmod 0755 /usr/libexec/homelab/stage-network-mode \
+    /usr/libexec/homelab/load-preroute
 
 RUN systemctl enable chronyd.service \
     bootc-fetch-apply-updates.timer \
+    network-mode.service \
     preroute-priority.service \
     coredns.service \
     glance-agent.service \

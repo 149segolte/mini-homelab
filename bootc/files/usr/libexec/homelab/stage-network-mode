@@ -1,0 +1,13 @@
+#!/usr/bin/bash
+# NetworkManager reads /run/NetworkManager/system-connections alongside /etc,
+# so staging there keeps the unselected mode's profiles out of its view.
+set -euo pipefail
+
+mode=$(</etc/homelab/network-mode)
+src=/etc/homelab/network-modes/${mode}
+target=/run/NetworkManager/system-connections
+
+[[ -d ${src} ]] || { echo "unknown network mode: ${mode}" >&2; exit 1; }
+
+install -Z -d -m 0755 "${target}"
+install -Z -m 0600 -t "${target}" "${src}"/*.nmconnection

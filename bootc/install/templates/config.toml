@@ -27,6 +27,8 @@ ADMIN_AP_SSID="mini-homelab"
 # ADMIN_AP_PSK= # passed as an argument
 HOME_AP_SSID="mini-homelab-5g"
 # HOME_AP_PSK= # passed as an argument
+UPLINK_SSID="" # wireless mode only; the wifi the Pi joins
+# UPLINK_PSK= # passed as an argument
 HOSTNAME="mini-homelab"
 TIMEZONE="America/New_York" # override to local timezone
 ADMIN_USER="one49segolte"
@@ -78,15 +80,31 @@ template = true
 # --- Networking ---
 
 [[entry]]
-source = "networking/admin-ap.nmconnection"
-dest = "/etc/NetworkManager/system-connections/admin-ap.nmconnection"
+source = "networking/ap-admin.nmconnection"
+dest = "/etc/NetworkManager/system-connections/ap-admin.nmconnection"
+mode = "0600"
+owner = "root:root"
+template = true
+
+# Mode profiles are staged into /run by network-mode.service, so they sit
+# outside NetworkManager's own keyfile directories until one mode is selected.
+
+[[entry]]
+source = "networking/modes/wired/uplink-wired.nmconnection"
+dest = "/etc/homelab/network-modes/wired/uplink-wired.nmconnection"
+mode = "0600"
+owner = "root:root"
+
+[[entry]]
+source = "networking/modes/wired/ap-home.nmconnection"
+dest = "/etc/homelab/network-modes/wired/ap-home.nmconnection"
 mode = "0600"
 owner = "root:root"
 template = true
 
 [[entry]]
-source = "networking/home-ap.nmconnection"
-dest = "/etc/NetworkManager/system-connections/home-ap.nmconnection"
+source = "networking/modes/wireless/uplink-wireless.nmconnection"
+dest = "/etc/homelab/network-modes/wireless/uplink-wireless.nmconnection"
 mode = "0600"
 owner = "root:root"
 template = true

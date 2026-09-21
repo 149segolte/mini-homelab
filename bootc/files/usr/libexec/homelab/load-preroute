@@ -1,0 +1,8 @@
+#!/usr/bin/bash
+# The mode decides which interface is untrusted, so the chain differs per mode.
+set -euo pipefail
+
+mode=$(</etc/homelab/network-mode)
+
+nft -f /usr/share/nftables/preroute-priority.nft
+nft -f "/usr/share/nftables/preroute-${mode}.nft"

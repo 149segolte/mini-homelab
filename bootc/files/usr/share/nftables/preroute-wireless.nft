@@ -1,0 +1,11 @@
+table inet preroute_mode
+delete table inet preroute_mode
+
+table inet preroute_mode {
+    chain block_external {
+        type filter hook prerouting priority -140;
+        # Allow packets belonging to already established connections (replies)
+        ct state { established, related } accept
+        iifname { "eth-ext", "wlan-usb" } drop
+    }
+}

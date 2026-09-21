@@ -5,14 +5,14 @@ After=firewalld.service
 # firewalld leaves foreign tables alone on reload, but ensure clean slate
 PartOf=firewalld.service
 Before=k3s.service
-ConditionPathExists=/usr/share/nftables/preroute-priority.nft
+ConditionPathExists=/etc/homelab/network-mode
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/sbin/nft -f /usr/share/nftables/preroute-priority.nft
-ExecStop=-/usr/sbin/nft delete table inet preroute_priority
+ExecStart=/usr/libexec/homelab/load-preroute
 ExecStop=-/usr/sbin/nft delete table ip preroute_priority
+ExecStop=-/usr/sbin/nft delete table inet preroute_mode
 
 [Install]
 WantedBy=multi-user.target

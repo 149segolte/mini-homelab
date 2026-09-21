@@ -1,0 +1,14 @@
+[Unit]
+Description=Stage NetworkManager profiles for the selected network mode
+Before=network-pre.target
+Wants=network-pre.target
+After=local-fs.target
+ConditionPathExists=/etc/homelab/network-mode
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/homelab/stage-network-mode
+
+[Install]
+WantedBy=multi-user.target
