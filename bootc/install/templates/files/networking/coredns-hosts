@@ -1,2 +1,2 @@
 # Served by CoreDNS through the hosts plugin.
-172.19.150.1 ${HOSTNAME}
+172.19.149.1 ${HOSTNAME}

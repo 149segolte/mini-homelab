@@ -1,5 +1,4 @@
 .:53 {
-    bind 127.0.0.1
     errors
     cache 30
     hosts /etc/coredns/hosts {
