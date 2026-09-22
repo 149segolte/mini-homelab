@@ -29,9 +29,10 @@ for the `DNSEndpoint` under `external-dns/crs`.
 
 Every object carries `external-dns.kubernetes.io/target: node.${DOMAIN}`. Each
 name is therefore a CNAME to `node.`, whose single A record is the only address
-to change. Without the annotation an Ingress falls back to its status, which
-holds both of Traefik's `externalIPs`, and an IngressRoute yields nothing. The
-older `alpha` prefix is not read.
+to change. That record takes `EXTERNAL_IP` from `cluster-vars`
+([Cluster](cluster.md#cluster-vars)). Without the annotation an Ingress falls
+back to its status, which holds Traefik's `externalIPs`, and an IngressRoute
+yields nothing. The older `alpha` prefix is not read.
 
 Writes use RFC 2136 with TSIG ([Technitium](technitium.md#tsig)). Two settings
 constrain the provider:
@@ -51,17 +52,17 @@ rather than replaced. The configuration sets a redirect from `web` to
 `websecure`, JSON access logs, and the Authelia middleware on the `websecure`
 entrypoint.
 
-Host ports are not used. Traefik's Service is a ClusterIP listing both access
-point addresses as `externalIPs`, so kube-proxy rewrites 80, 443 and 3922 to it
-([Host](host.md#k3s)). cloudflared uses the ClusterIP directly. Nothing binds a
-host port, so the pod stays inside the `restricted` Pod Security profile and
-the Deployment runs two replicas. Traefik performs no ACME of its own, so the
-replicas share no state.
+Host ports are not used. Traefik's Service is a ClusterIP carrying
+`EXTERNAL_IP` as its one `externalIP`, so kube-proxy rewrites 80, 443 and 3922
+to it ([Host](host.md#k3s)). cloudflared uses the ClusterIP directly. Nothing
+binds a host port, so the pod stays inside the `restricted` Pod Security
+profile and the Deployment runs two replicas. Traefik performs no ACME of its
+own, so the replicas share no state.
 
-`externalIPs` are reachable from any interface that can route to them, so they
-do not limit access. The pre-DNAT filter does
-([Host](host.md#pre-dnat-filter)). Both access points and the tailnet reach
-these three ports equally.
+One address serves every subnet, because the Pi routes the others to it
+([Host](host.md#networking)). `externalIPs` are reachable from any interface
+that can route to them, so the pre-DNAT filter limits access rather than they
+do ([Host](host.md#pre-dnat-filter)).
 
 The dashboard is exposed by the chart's own IngressRoute. `api@internal` is a
 Traefik service rather than a Kubernetes one, so no ordinary Ingress can reach

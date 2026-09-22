@@ -18,10 +18,9 @@ the name: `brcmfmac-firmware` drives the onboard 2.4 GHz radio and
 NetworkManager's `method=shared` requires it, and `chrony` because the Pi has
 no real-time clock.
 
-NetworkManager owns dnsmasq. Nothing in this repository configures it.
-
-CoreDNS and the Glance agent are copied from upstream container images. Fedora
-packages neither.
+NetworkManager owns dnsmasq, which one drop-in configures ([DNS](#dns)).
+CoreDNS and the Glance agent are copied from upstream container images, because
+Fedora packages neither.
 
 ## Building
 
@@ -59,7 +58,8 @@ anything is mounted there
 ```bash
 sudo ./build.py install /mnt "$ROOT_UUID" "$BOOT_UUID" quay.io/149segolte \
   "systemd.mount-extra=UUID=$VAR_UUID:/var:ext4"
-sudo ./build.py add-templates /mnt ADMIN_AP_PSK=... HOME_AP_PSK=... ADMIN_SSH_KEY=...
+sudo ./build.py add-templates /mnt ADMIN_AP_PSK=... HOME_AP_PSK=... \
+  UPLINK_PSK=... ADMIN_SSH_KEY=...
 sudo bootc/install/fix-var-mount.py /mnt /dev/sda4
 ```
 
@@ -85,7 +85,7 @@ those the Pi never reaches a kernel.
 ### Install-time overlay
 
 The overlay supplies files that cannot be baked into the image because they are
-specific to this machine or secret: the access point PSKs, the admin SSH key,
+specific to this machine or secret: the wifi PSKs, the admin SSH key,
 the hostname and the timezone. `bootc/install/templates/config.toml` lists the
 entries and documents its own schema.
 
@@ -101,16 +101,33 @@ the condition, and `add-templates` touches the deployment's `/usr`.
 
 ## Networking
 
-All traffic transits the Pi. It is the upstream client, both access points, the
-router and the resolver.
+The host runs one of two uplink modes, named for how it reaches upstream.
+`/etc/homelab/network-mode` selects it and `wired` is the shipped default.
 
-| Zone        | Interface           | Network            |
-| ----------- | ------------------- | ------------------ |
-| `ext`       | `eth-ext`, onboard  | Upstream DHCP      |
-| `admin`     | `wlan-adm`, 2.4 GHz | 172.19.150.0/24    |
-| `home`      | `wlan-usb`, 5 GHz   | 172.19.149.0/24    |
-| `tailscale` | `tailscale0`        | Tailnet            |
-| `k8s`       | `cni0`, `flannel.1` | 10.42/16, 10.43/16 |
+| Connection        | Interface  | Mode     | Zone  | Address         |
+| ----------------- | ---------- | -------- | ----- | --------------- |
+| `ap-admin`        | `wlan-adm` | both     | admin | 172.19.149.1/24 |
+| `ap-home`         | `wlan-usb` | wired    | home  | 172.19.150.1/24 |
+| `uplink-wired`    | `eth-ext`  | wired    | ext   | Upstream DHCP   |
+| `uplink-wireless` | `wlan-usb` | wireless | ext   | Upstream DHCP   |
+
+Under `wired` the Pi routes for everything beneath it. Under `wireless` it sits
+beside the devices on the upstream network and publishes nothing to them, so
+services stay reachable over the tunnel, the admin AP and the tailnet.
+
+`network-mode.service` stages the selected mode's profiles from
+`/etc/homelab/network-modes/<mode>/` into
+`/run/NetworkManager/system-connections`, a keyfile directory NetworkManager
+reads alongside `/etc` and `/usr/lib`. The unselected mode's profiles are in
+none of the three, so NetworkManager never sees them. Changing modes is an edit
+and a reboot.
+
+`ap-admin` is the only connection in `/etc/NetworkManager/system-connections`,
+because it is identical in both modes. It holds 172.19.149.1, the address the
+cluster publishes on and the resolver DHCP hands out. The admin AP holds it
+rather than the home one so that it exists in both modes; `wlan-usb` is the
+home AP or the uplink depending on the mode, so 172.19.150.0/24 exists under
+`wired` only.
 
 Interfaces are named by driver in `systemd/network/*.link`, so the names
 survive probe order. NetworkManager runs with `no-auto-default=*`, which makes
@@ -118,8 +135,8 @@ every connection a declared keyfile, and leaves `cni0` and `flannel*` alone.
 Keyfiles must be mode `0600` or NetworkManager ignores them.
 
 Both access points use `method=shared`, so each runs its own dnsmasq and NAT.
-The `to-ext` policy masquerades as well, so the two overlap. The `upstream`
-connection sets `ignore-auto-dns`, which stops the upstream router's resolver
+The `to-ext` policy masquerades as well, so the two overlap. Both uplink
+connections set `ignore-auto-dns`, which stops the upstream router's resolver
 from displacing the local one.
 
 firewalld governs traffic that terminates on the host. An nftables table hooked
@@ -132,7 +149,7 @@ Every zone has target `DROP`, so a port is reachable only if listed.
 - `home`: dhcp, dns.
 - `admin`: dhcp, dns, ssh, 6443.
 - `tailscale`: dns, ssh, 6443.
-- `ext`: nothing.
+- `ext`: nothing, whichever interface is the uplink.
 - `k8s`: target `ACCEPT`, matched by source address and by the `cni0` and
   `flannel.1` interfaces, with `forward` set so pods reach each other.
 
@@ -141,38 +158,44 @@ and `k8s` towards `ext`. No policy points at `k8s`, so nothing outside the
 cluster may address it.
 
 None of the ports the cluster serves appear above. Traefik's Service is a
-ClusterIP carrying `externalIPs`, so kube-proxy rewrites 80, 443 and 3922 in
+ClusterIP carrying an `externalIP`, so kube-proxy rewrites 80, 443 and 3922 in
 `prerouting` ([Services](services.md#traefik)). That traffic is forwarded to a
 pod rather than delivered to the host, so no zone evaluates it and firewalld
 accepts it.
 
 ### Pre-DNAT filter
 
-`preroute-priority.service` loads `/usr/share/nftables/preroute-priority.nft`
-into two tables of its own, hooked at `prerouting` priorities -140 and -130.
-That is after `conntrack` at -200 and ahead of `dstnat` at -100, the only
-window where the original destination is still intact.
+`preroute-priority.service` loads two nftables tables of its own, hooked at
+`prerouting` priorities -140 and -130. That is after `conntrack` at -200 and
+ahead of `dstnat` at -100, the only window where the original destination is
+still intact.
 
-- `block_external` drops every new connection arriving on `eth-ext`.
+- `block_external` drops every new connection arriving on the uplink, and is
+  the one rule that differs between modes. `load-preroute` picks
+  `preroute-wired.nft` or `preroute-wireless.nft`, which drop `eth-ext` and,
+  under `wireless`, `wlan-usb` with it. This is all that stands between the
+  uplink and the ports the host and the cluster answer on, since both bind
+  every interface.
 - `block_outside_cluster_access` drops traffic addressed to 10.42/16 or
   10.43/16 unless it came from there. Pod and service addresses are therefore
   reachable from inside the cluster only. The rewrite above is unaffected,
   because at that point the destination is still the host's own address.
 
 Neither chain sees host-originated traffic, which does not traverse
-`prerouting`. Both accept `established` and `related` first, or replies to the
-host's own connections would be dropped. `PartOf=firewalld.service` restarts
-the unit with firewalld. A reload does not need it.
+`prerouting`. Both accept
+`established` and `related` first, or replies to the host's own connections
+would be dropped. `PartOf=firewalld.service` restarts the unit with firewalld.
+A reload does not need it.
 
 ### DNS
 
 ```
-client -> dnsmasq (per AP, no cache) -> CoreDNS :53 -> 10.43.0.53, then 1.1.1.1, 8.8.8.8
+client -> CoreDNS :53 -> 10.43.0.53, then 1.1.1.1, 8.8.8.8
 ```
 
-dnsmasq forwards without caching, so CoreDNS is the only cache in the chain.
-CoreDNS binds loopback, which a pod cannot reach, so k3s is pointed at
-172.19.150.1 instead.
+CoreDNS binds every interface, so one resolver answers the access points, the
+tailnet, the pods and the host itself. dnsmasq runs with `port=0` and serves
+DHCP alone, handing out 172.19.149.1 as the resolver on both access points.
 
 The host's own name is answered from `/etc/coredns/hosts`, which the `hosts`
 plugin serves ahead of `forward`. It is not a Technitium zone, because ssh has
@@ -184,11 +207,9 @@ hostname.
 references it literally ([Technitium](technitium.md)), and unreachable from
 outside the cluster ([pre-DNAT filter](#pre-dnat-filter)). CoreDNS
 health-checks it, so while the pod is down the host keeps resolving through the
-public forwarders. A cluster outage costs ad blocking rather than DNS.
-
-Technitium sits downstream of this chain, so its own forwarders must be IP
-literals. A hostname there resolves back through the chain into Technitium
-itself.
+public forwarders. A cluster outage costs ad blocking rather than DNS, and
+puts Technitium's own forwarders downstream of this chain
+([Technitium](technitium.md)).
 
 ### Tailscale
 
@@ -199,8 +220,8 @@ what the host answers.
 Two settings live in the Tailscale admin console:
 
 - Advertised subnet routes and the exit node both need approval.
-- Split DNS maps `${DOMAIN}` to nameserver 172.19.149.1, which reaches the home
-  AP's dnsmasq and from there the chain above.
+- Split DNS maps `${DOMAIN}` to nameserver 172.19.149.1, where CoreDNS answers
+  in either mode.
 
 ## k3s
 
@@ -220,11 +241,11 @@ installer and adds two directives:
 
 - `disable` drops ServiceLB. Traefik's Service carries `externalIPs` instead
   ([Services](services.md#traefik)).
-- `node-ip` is 172.19.150.1, the admin AP address hosted by the Pi itself.
+- `node-ip` is 172.19.149.1, the admin AP address hosted by the Pi itself.
   Upstream DHCP disappears with upstream, and a node advertising an unroutable
   address is worse than one on a link that is always up.
-- `resolv-conf` names a file holding that same address, because CoreDNS binds
-  loopback and a pod cannot reach it.
+- `resolv-conf` names a file holding that same address, which is where CoreDNS
+  answers in either mode ([DNS](#dns)).
 - `kubelet-arg` sets `config=kubelet.config`, a 30 s shutdown grace and 10 s
   for critical pods, so an upgrade reboot drains.
 - `kube-apiserver-arg` sets `admission-control-config-file=psa.yaml` for Pod

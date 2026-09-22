@@ -5,8 +5,8 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
-    # ServiceLB is disabled on the node. kube-proxy handles DNAT from these
-    # host addresses.
+    # ServiceLB is disabled on the node. kube-proxy handles DNAT from this
+    # host address.
     service:
       spec:
         type: ClusterIP

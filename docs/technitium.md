@@ -32,8 +32,8 @@ fail silently.
 
 - **Forwarders**: `https://1.1.1.1/dns-query` and `https://8.8.8.8/dns-query`.
   IP literals only. A hostname would have to be resolved first, and the pod
-  resolves via 172.19.150.1 -> dnsmasq -> CoreDNS -> 10.43.0.53, which is
-  Technitium itself. Both certificates carry IP SANs, so TLS still validates.
+  resolves via 172.19.149.1 -> CoreDNS -> 10.43.0.53, which is Technitium
+  itself. Both certificates carry IP SANs, so TLS still validates.
 - **DNS service port**: `53`, which the Service targets. This is the least
   visible of these failures. DNS keeps working, because CoreDNS falls through
   to 1.1.1.1, and only ad blocking stops.
@@ -134,14 +134,13 @@ authoritative for the whole domain, any name without a record returns NXDOMAIN,
 and certificate renewal fails silently about sixty days later.
 
 external-dns writes one CNAME per service name pointing at `node.${DOMAIN}`,
-the single A record for 172.19.149.1, plus a `zzz-external-dns-` TXT beside
+the single A record for `EXTERNAL_IP`, plus a `zzz-external-dns-` TXT beside
 each for ownership. A missing record resolves publicly and takes the tunnel,
 which is slower but works. `files.` is the exception, because the tunnel
 carries HTTP alone and SFTP on 3922 then has no route at all.
 
-Home AP clients reach 172.19.149.1 directly, admin AP clients through the Pi,
-and tailnet clients over the advertised `/32` with split DNS pointed at the
-same address ([Host](host.md#tailscale)). There is no reverse DNS, because
+Tailnet clients reach it over the advertised `/32`, with split DNS pointed at
+the same address ([Host](host.md#tailscale)). There is no reverse DNS, because
 every service shares the address.
 
 ## Verifying

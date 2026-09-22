@@ -29,6 +29,20 @@ itself, so a nested Kustomization that uses a variable needs its own
 `postBuild`. It does reach generated ConfigMap content, which is how cloudflared
 and Glance receive the domain.
 
+### cluster-vars
+
+`cluster-vars` belongs to the cluster rather than to git, because
+`EXTERNAL_IP` is expected to change on a live one. It carries that plus
+`DOMAIN`, `ACME_EMAIL` and `LOCATION`. `infrastructure/bootstrap.yaml` holds
+the reference copy and is deliberately absent from
+`infrastructure/kustomization.yaml`, so Flux renders the directory without ever
+adopting the file, and an edit in the cluster survives reconciliation.
+
+`flux-instance.yaml` patches kustomize-controller with
+`--watch-configs-label-selector=owner!=helm`, so editing it reconciles the
+tiers instead of waiting out the interval. The selector skips Helm storage
+Secrets.
+
 A component with internal ordering repeats the pattern one level down: a
 directory of manifests, a Flux Kustomization pointing at it, and a
 `sources.yaml` for whatever it pulls from. external-secrets and external-dns
@@ -44,8 +58,8 @@ node is already up on first boot.
 
 ```bash
 # kubeconfig. k3s writes it root-only; the apiserver answers on the admin AP
-ssh <admin>@172.19.150.1 sudo cat /etc/rancher/k3s/k3s.yaml \
-  | sed 's#127.0.0.1#172.19.150.1#' > ~/.kube/mini-homelab
+ssh <admin>@172.19.149.1 sudo cat /etc/rancher/k3s/k3s.yaml \
+  | sed 's#127.0.0.1#172.19.149.1#' > ~/.kube/mini-homelab
 export KUBECONFIG=~/.kube/mini-homelab
 
 # flux-operator by hand: the FluxInstance CRD must exist before the manifest
@@ -56,6 +70,9 @@ helm install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-opera
 # pull secret. flux-instance.yaml sets provider: github, so App credentials
 flux create secret githubapp flux-system \
   --app-id=<id> --app-installation-id=<id> --app-private-key=<key>.pem
+
+# cluster-vars, before handover, or every tier fails variable substitution
+kubectl apply -f infrastructure/bootstrap.yaml
 
 # hand over. Flux then reconciles clusters/rpi4, including flux-instance.yaml
 kubectl apply -f clusters/rpi4/flux-instance.yaml
