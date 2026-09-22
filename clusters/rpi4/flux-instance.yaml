@@ -23,3 +23,12 @@ spec:
     ref: "refs/heads/main"
     path: "clusters/rpi4"
     pullSecret: "flux-system"
+  kustomize:
+    patches:
+      - target:
+          kind: Deployment
+          name: kustomize-controller
+        patch: |
+          op: add
+          path: /spec/template/spec/containers/0/args/-
+          value: --watch-configs-label-selector=owner!=helm

@@ -10,7 +10,8 @@ spec:
     service:
       spec:
         type: ClusterIP
-        externalIPs: [172.19.149.1, 172.19.150.1]
+        externalIPs:
+          - ${EXTERNAL_IP}
 
     deployment:
       replicas: 2

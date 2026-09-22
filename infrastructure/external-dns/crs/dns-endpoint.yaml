@@ -9,4 +9,4 @@ spec:
       recordType: A
       recordTTL: 300
       targets:
-        - 172.19.149.1
+        - ${EXTERNAL_IP}

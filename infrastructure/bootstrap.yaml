@@ -7,3 +7,5 @@ data:
   DOMAIN: 149segolte.dev
   ACME_EMAIL: admin+acme@149segolte.dev
   LOCATION: Gainesville, Florida
+  # The address published services answer on.
+  EXTERNAL_IP: 172.19.149.1
