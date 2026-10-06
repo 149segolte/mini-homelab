@@ -57,7 +57,8 @@ RUN printf '%s\n' \
 COPY files/ /
 
 RUN chmod 0755 /usr/libexec/homelab/stage-network-mode \
-    /usr/libexec/homelab/load-preroute
+    /usr/libexec/homelab/load-preroute \
+    /usr/bin/k3s-killall
 
 RUN systemctl enable chronyd.service \
     bootc-fetch-apply-updates.timer \
