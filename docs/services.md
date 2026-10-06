@@ -117,9 +117,11 @@ certificate, so there is no hard ordering against cert-manager.
 The Certificate lives in `kube-system` alongside Traefik and the TLSStore, but
 is defined under `cert-manager/issuers/` for ordering. That Kustomization waits
 on cert-manager's controller and CRDs; ESO's, needed for the Cloudflare token,
-are already in place from the `initialization` tier. Its timeout is long
-because `wait: true` blocks until the Certificate is ready and a first DNS-01
-issuance takes minutes.
+are already in place from the `initialization` tier. `wait: true` blocks until
+the Certificate is ready, and a first DNS-01 issuance takes minutes, so the 5m
+timeout can lapse before it finishes. That is not fatal: the 1m retry
+reconciles again and the Certificate is usually Ready by then, since
+cert-manager keeps working on the order regardless of Flux.
 
 cert-manager self-checks propagation before asking Let's Encrypt to validate.
 By default it resolves through the pod's resolver, which leads to dnsmasq,

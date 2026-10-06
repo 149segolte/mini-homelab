@@ -26,6 +26,14 @@ attach to, and External Secrets Operator, whose CRDs and `ClusterSecretStore`
 every `ExternalSecret` needs. Because the tier waits on its nested
 Kustomizations, `infrastructure` starts only once the secret store is ready.
 
+Every tier reconciles on a 10m interval and retries after 1m when a run
+fails, so a transient failure costs a minute rather than a full interval. The
+timeout bounds how long `wait: true` holds a run open and grows down the
+chain: 2m for `initialization`, 5m for `infrastructure`, 10m for `apps`.
+Nested Kustomizations and HelmReleases take their tier's timeout. Nested
+Kustomizations keep the 10m / 1m cadence, while HelmReleases, whose chart
+versions change only by commit, reconcile hourly.
+
 Admission control is not a tier. It lives in the apiserver and is in force
 before Flux applies anything ([Admission control](#admission-control)).
 
