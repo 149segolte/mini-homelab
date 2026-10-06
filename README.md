@@ -12,8 +12,7 @@ Nothing is managed imperatively.
 
 ## Docs
 
-[docs/](docs/) holds four pages, one per layer: host, cluster, services, and
-the Technitium settings that cannot live in git.
+[docs/](docs/) holds three pages, one per layer: host, cluster and services.
 
 ## Layout
 

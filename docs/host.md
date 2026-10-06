@@ -198,18 +198,17 @@ tailnet, the pods and the host itself. dnsmasq runs with `port=0` and serves
 DHCP alone, handing out 172.19.149.1 as the resolver on both access points.
 
 The host's own name is answered from `/etc/coredns/hosts`, which the `hosts`
-plugin serves ahead of `forward`. It is not a Technitium zone, because ssh has
+plugin serves ahead of `forward`. It is not a blocky record, because ssh has
 to work when the cluster does not. The Corefile ships in the image and the
 hosts file is written at install time, so the record tracks the configured
 hostname.
 
-10.43.0.53 is Technitium's Service. The address is fixed because the Corefile
-references it literally ([Technitium](technitium.md)), and unreachable from
+10.43.0.53 is blocky's Service ([Services](services.md#dns)). The address is
+fixed because the Corefile references it literally, and unreachable from
 outside the cluster ([pre-DNAT filter](#pre-dnat-filter)). CoreDNS
-health-checks it, so while the pod is down the host keeps resolving through the
-public forwarders. A cluster outage costs ad blocking rather than DNS, and
-puts Technitium's own forwarders downstream of this chain
-([Technitium](technitium.md)).
+health-checks it, so while the pods are down the host keeps resolving through
+the public forwarders. A cluster outage costs ad blocking and the internal
+records rather than DNS.
 
 ### Tailscale
 

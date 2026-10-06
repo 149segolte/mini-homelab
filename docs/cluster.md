@@ -39,7 +39,7 @@ and Glance receive the domain.
 
 `cluster-vars` belongs to the cluster rather than to git, because
 `EXTERNAL_IP` is expected to change on a live one. It carries that plus
-`DOMAIN`, `ACME_EMAIL` and `LOCATION`. `initialization/bootstrap.yaml` holds
+`DOMAIN`, `ACME_EMAIL`, `LOCATION` and `TIMEZONE`. `initialization/bootstrap.yaml` holds
 the reference copy and is deliberately absent from
 `initialization/kustomization.yaml`, so Flux renders the directory without ever
 adopting the file, and an edit in the cluster survives reconciliation.
@@ -52,15 +52,13 @@ Secrets.
 A component without internal ordering is a plain directory of manifests that
 the tier renders directly, so it inherits the tier's substitution and health
 checks and needs no Flux Kustomization of its own. authelia, cloudflared and
-flux-operator are laid out this way.
+flux-operator and blocky are laid out this way.
 
 A component with internal ordering repeats the pattern one level down: a
 directory of manifests, a Flux Kustomization pointing at it, and a
-`sources.yaml` for whatever it pulls from. external-secrets and external-dns
-both order `crds -> operator -> crs` this way. Tier order already places
-`external-secrets-crs` ahead of every `infrastructure` component; technitium
-and external-dns still declare `dependsOn: external-secrets-crs` as well, which
-is redundant but harmless. Each component declares its own namespace as a manifest rather than
+`sources.yaml` for whatever it pulls from. external-secrets orders
+`crds -> operator -> crs` this way, and cert-manager `controller -> issuers`.
+Each component declares its own namespace as a manifest rather than
 relying on `targetNamespace`, which keeps labels and deletion declarative.
 
 ## Bootstrapping
