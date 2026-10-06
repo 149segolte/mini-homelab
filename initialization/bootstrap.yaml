@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-vars
+  namespace: flux-system
+data:
+  DOMAIN: 149segolte.dev
+  ACME_EMAIL: admin+acme@149segolte.dev
+  LOCATION: Gainesville, Florida
+  TIMEZONE: America/New_York
+  # The address published services answer on.
+  EXTERNAL_IP: 172.19.149.1

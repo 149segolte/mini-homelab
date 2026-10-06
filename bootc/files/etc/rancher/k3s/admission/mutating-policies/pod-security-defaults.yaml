@@ -1,0 +1,58 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingAdmissionPolicy
+metadata:
+  name: pod-security-defaults.static.k8s.io
+spec:
+  reinvocationPolicy: Never
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE"]
+        resources: ["pods"]
+  mutations:
+    # Pod-level seccomp covers every container
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >
+          has(object.spec.securityContext.seccompProfile) ? [] : [JSONPatch{
+            op: "add", path: "/spec/securityContext/seccompProfile",
+            value: Object.spec.securityContext.seccompProfile{type: "RuntimeDefault"}}]
+    # Also creates securityContext where a container has none
+    - patchType: ApplyConfiguration
+      applyConfiguration:
+        expression: >
+          Object{spec: Object.spec{
+            containers: object.spec.containers
+              .filter(c, !has(c.securityContext) || !has(c.securityContext.allowPrivilegeEscalation))
+              .map(c, Object.spec.containers{name: c.name,
+                securityContext: Object.spec.containers.securityContext{allowPrivilegeEscalation: false}}),
+            initContainers: (has(object.spec.initContainers) ? object.spec.initContainers : [])
+              .filter(c, !has(c.securityContext) || !has(c.securityContext.allowPrivilegeEscalation))
+              .map(c, Object.spec.initContainers{name: c.name,
+                securityContext: Object.spec.initContainers.securityContext{allowPrivilegeEscalation: false}})
+          }}
+    # capabilities.drop is atomic, so JSONPatch
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >
+          object.spec.containers.transformList(i, c, !has(c.securityContext.capabilities),
+            JSONPatch{op: "add", path: "/spec/containers/" + string(i) + "/securityContext/capabilities",
+              value: Object.spec.containers.securityContext.capabilities{drop: ["ALL"]}}) +
+          (has(object.spec.initContainers) ? object.spec.initContainers : []).transformList(i, c,
+            !has(c.securityContext.capabilities),
+            JSONPatch{op: "add", path: "/spec/initContainers/" + string(i) + "/securityContext/capabilities",
+              value: Object.spec.initContainers.securityContext.capabilities{drop: ["ALL"]}})
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingAdmissionPolicyBinding
+metadata:
+  name: pod-security-defaults.static.k8s.io
+spec:
+  policyName: pod-security-defaults.static.k8s.io
+  matchResources:
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: [kube-system]

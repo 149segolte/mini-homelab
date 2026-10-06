@@ -9,6 +9,7 @@ pages:
   - name: Home
     width: slim
     center-vertically: true
+    hide-desktop-navigation: true
     columns:
       - size: full
         widgets:
@@ -23,23 +24,42 @@ pages:
               - title: Flux Operator
                 url: https://flux.${DOMAIN}
                 check-url: http://flux-operator.flux-system.svc.cluster.local:9080
-              - title: Technitium DNS
-                url: https://dns.${DOMAIN}
-                check-url: http://technitium.technitium.svc.cluster.local:5380
               - title: Authelia Gateway
                 url: https://auth.${DOMAIN}
                 check-url: http://authelia.authelia.svc.cluster.local:9091/api/health
 
-          - type: bookmarks
-            groups:
-              - title: Cluster
-                links:
-                  - title: Traefik Dashboard
-                    url: https://traefik.${DOMAIN}
-                  - title: whoami (echo server)
-                    url: https://whoami.${DOMAIN}
-                  - title: Cloudflare Tunnels
-                    url: https://dash.cloudflare.com/?to=/:account/tunnels
+          - type: split-column
+            max-columns: 2
+            widgets:
+              - type: bookmarks
+                groups:
+                  - title: Cluster
+                    links:
+                      - title: Traefik Dashboard
+                        url: https://traefik.${DOMAIN}
+                      - title: whoami (echo server)
+                        url: https://whoami.${DOMAIN}
+                      - title: Cloudflare Tunnels
+                        url: https://dash.cloudflare.com/?to=/:account/tunnels
+              - type: releases
+                token: $${GITHUB_TOKEN}
+                repositories:
+                  # Host
+                  - coredns/coredns
+                  - glanceapp/agent
+                  - k3s-io/k3s
+                  - fluxcd/flux2
+                  # Infrastructure
+                  - controlplaneio-fluxcd/flux-operator
+                  - external-secrets/external-secrets
+                  - cert-manager/cert-manager
+                  - authelia/authelia
+                  - cloudflare/cloudflared
+                  - 0xERR0R/blocky
+                  # Services
+                  - traefik/whoami
+                  - glanceapp/glance
+                  - 9001/copyparty
 
       - size: small
         widgets:
@@ -54,7 +74,7 @@ pages:
             hour-format: 24h
             timezones:
               - timezone: US/Pacific
-                label: East Coast
+                label: West Coast
               - timezone: Etc/UTC
                 label: UTC
               - timezone: Asia/Kolkata

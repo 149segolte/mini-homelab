@@ -1,18 +1,18 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: glance
-  namespace: glance
+  name: authelia
+  namespace: authelia
 spec:
   ingressClassName: traefik
   rules:
-    - host: mini.${DOMAIN}
+    - host: auth.${DOMAIN}
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: glance
+                name: authelia
                 port:
                   name: http

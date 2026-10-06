@@ -33,7 +33,7 @@ RUN dnf -y install \
 RUN systemctl enable firewalld \
     && sed -i 's/^DefaultZone=.*/DefaultZone=drop/' /etc/firewalld/firewalld.conf
 
-ARG K3S_VERSION=v1.36.3+k3s1
+ARG K3S_VERSION=v1.37.1+k3s1
 
 RUN curl -fsSL -o /usr/bin/k3s \
     "https://github.com/k3s-io/k3s/releases/download/${K3S_VERSION//+/%2B}/k3s-arm64" \
@@ -57,7 +57,8 @@ RUN printf '%s\n' \
 COPY files/ /
 
 RUN chmod 0755 /usr/libexec/homelab/stage-network-mode \
-    /usr/libexec/homelab/load-preroute
+    /usr/libexec/homelab/load-preroute \
+    /usr/bin/k3s-killall
 
 RUN systemctl enable chronyd.service \
     bootc-fetch-apply-updates.timer \

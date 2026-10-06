@@ -1,0 +1,61 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    # ServiceLB is disabled on the node. kube-proxy handles DNAT from this
+    # host address.
+    service:
+      spec:
+        type: ClusterIP
+        externalIPs:
+          - ${EXTERNAL_IP}
+
+    deployment:
+      replicas: 2
+
+    # One wildcard served as the default certificate, so no Ingress needs a
+    # `tls` block and no secret has to be replicated per namespace.
+    tlsStore:
+      default:
+        defaultCertificate:
+          secretName: wildcard-tls
+
+    # Allow middlewares to exist in a separate namespace from Traefik.
+    providers:
+      kubernetesCRD:
+        allowCrossNamespace: true
+
+    ingressRoute:
+      dashboard:
+        enabled: true
+        matchRule: Host(`traefik.${DOMAIN}`)
+        entryPoints:
+          - websecure
+
+    logs:
+      access:
+        enabled: true
+        format: json
+
+    ports:
+      web:
+        http:
+          redirections:
+            entryPoint:
+              to: websecure
+              scheme: https
+              permanent: true
+      websecure:
+        http:
+          middlewares:
+            - authelia-authelia@kubernetescrd
+      # Raw TCP for copyparty's SFTP. Authelia middleware doesn't apply to this.
+      sftp:
+        port: 3922
+        exposedPort: 3922
+        protocol: TCP
+        expose:
+          default: true

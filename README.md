@@ -12,8 +12,7 @@ Nothing is managed imperatively.
 
 ## Docs
 
-[docs/](docs/) holds four pages, one per layer: host, cluster, services, and
-the Technitium settings that cannot live in git.
+[docs/](docs/) holds three pages, one per layer: host, cluster and services.
 
 ## Layout
 
@@ -46,14 +45,14 @@ Installing to a fresh disk is three commands; see [host](docs/host.md#installati
 
 ## Decisions
 
-| Decision                               | Why                                                               |
-| -------------------------------------- | ----------------------------------------------------------------- |
-| U-Boot / DeviceTree boot, not EDK2     | EDK2 puts onboard wifi out of scope                               |
-| firewalld for host traffic             | zone model, and k3s documents a supported firewalld configuration |
-| `--node-ip` on the admin address       | survives upstream loss without reporting an unroutable address    |
-| `bootc upgrade` without `--apply`      | stages the image automatically; reboot stays deliberate           |
-| ghcr.io **and** quay.io                | build once, push twice; either can serve an upgrade               |
-| PSA at the apiserver, Kyverno above it | a floor that cannot fail open, under policy that can              |
+| Decision                                       | Why                                                               |
+| ---------------------------------------------- | ----------------------------------------------------------------- |
+| U-Boot / DeviceTree boot, not EDK2             | EDK2 puts onboard wifi out of scope                               |
+| firewalld for host traffic                     | zone model, and k3s documents a supported firewalld configuration |
+| `--node-ip` on the admin address               | survives upstream loss without reporting an unroutable address    |
+| `bootc upgrade` without `--apply`              | stages the image automatically; reboot stays deliberate           |
+| ghcr.io **and** quay.io                        | build once, push twice; either can serve an upgrade               |
+| PSA `restricted` plus a static mutating policy | admission that lives in the apiserver and cannot fail closed      |
 
 Config lives in `/usr` wherever possible, versioned with the image and unable
 to drift. `/etc` only for genuinely machine-local state. Secrets, SSH keys

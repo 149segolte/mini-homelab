@@ -8,8 +8,8 @@ LAN / tailnet ---------------------------------------> Traefik --> Ingress
 ```
 
 Hostnames are built from `${DOMAIN}` in `cluster-vars`. Public records live in
-Cloudflare, outside this repository. Internal records are written into
-Technitium from the cluster's own objects.
+Cloudflare, outside this repository. Internal records are served by blocky
+from a zone held in git.
 
 | Host           | Service                                           |
 | -------------- | ------------------------------------------------- |
@@ -19,38 +19,55 @@ Technitium from the cluster's own objects.
 | `auth.`        | Authelia                                          |
 | `flux.`        | Flux UI, authenticating over OIDC                 |
 | `traefik.`     | Traefik dashboard                                 |
-| `dns.`, `doh.` | Technitium, with no public record                 |
+| `dns.`, `doh.` | blocky's API and DoH, with no public record       |
 
-## Hostnames
+## DNS
 
-external-dns writes the internal records from cluster objects. It reads three
-sources: `ingress`, `traefik-proxy` for the dashboard's IngressRoute, and `crd`
-for the `DNSEndpoint` under `external-dns/crs`.
+blocky is the resolver for the whole machine. The host's CoreDNS forwards to
+its Service at 10.43.0.53 ([Host](host.md#dns)), a fixed `clusterIP` because
+the Corefile references it literally. blocky keeps no state, so the Deployment
+runs two replicas and a restart loses only the cache and the downloaded
+blocklists.
 
-Every object carries `external-dns.kubernetes.io/target: node.${DOMAIN}`. Each
-name is therefore a CNAME to `node.`, whose single A record is the only address
-to change. That record takes `EXTERNAL_IP` from `cluster-vars`
-([Cluster](cluster.md#cluster-vars)). Without the annotation an Ingress falls
-back to its status, which holds Traefik's `externalIPs`, and an IngressRoute
-yields nothing. The older `alpha` prefix is not read.
+- The upstreams are DNS stamps that carry IP addresses. A hostname would have
+  to be resolved first, and the pod resolves through the host's CoreDNS, which
+  forwards back to blocky.
+- Internal records are the `customDNS.zone` block. Each name is a CNAME to
+  `node.`, whose single A record takes `EXTERNAL_IP` from `cluster-vars`
+  ([Cluster](cluster.md#cluster-vars)). A published hostname needs a line there
+  as well as an Ingress. A missing record resolves publicly and takes the
+  tunnel, which is slower but works. `files.` is the exception, because the
+  tunnel carries HTTP alone and SFTP on 3922 then has no route at all.
+- Flux substitutes `cluster-vars` after kustomize has hashed the ConfigMap
+  name, and blocky reads its configuration only at startup. A change to
+  `EXTERNAL_IP` therefore takes effect after a restart of the Deployment.
+- `dns.` and `doh.` get no public record. blocky has no client ACL, so a `doh.`
+  reachable from the internet would be an open resolver.
 
-Writes use RFC 2136 with TSIG ([Technitium](technitium.md#tsig)). Two settings
-constrain the provider:
+Tailnet clients reach it over the advertised `/32`, with split DNS pointed at
+the same address ([Host](host.md#tailscale)). There is no reverse DNS, because
+every service shares the address.
 
-- `--rfc2136-min-ttl` must not exceed a `recordTTL` on the `DNSEndpoint`. The
-  written TTL is clamped up to the minimum while the plan keeps comparing
-  against the value asked for, so a lower `recordTTL` is rewritten every
-  interval.
-- `install.crds` and `upgrade.crds` are `Skip`. The chart ships the
-  `DNSEndpoint` CRD in `crds/`, which Helm installs but never upgrades, so the
-  `crds` Kustomization owns it ([Cluster](cluster.md#tiers)).
+On the host:
+
+```bash
+dig @10.43.0.53 example.com +short            # blocky directly
+dig @127.0.0.1 example.com +short             # through CoreDNS
+dig @127.0.0.1 doubleclick.net +short         # 0.0.0.0 once blocklists load
+dig @127.0.0.1 whoami.${DOMAIN} +short        # CNAME to node., then its address
+```
+
+The third confirms that CoreDNS reaches blocky rather than staying with the
+public forwarders. Allow a few minutes for the blocklists after a restart.
 
 ## Traefik
 
 Traefik ships with k3s and is configured in place with a `HelmChartConfig`
 rather than replaced. The configuration sets a redirect from `web` to
 `websecure`, JSON access logs, and the Authelia middleware on the `websecure`
-entrypoint.
+entrypoint. It is applied in the `initialization` tier
+([Cluster](cluster.md#tiers)), so the entrypoints exist before anything routes
+to them.
 
 Host ports are not used. Traefik's Service is a ClusterIP carrying
 `EXTERNAL_IP` as its one `externalIP`, so kube-proxy rewrites 80, 443 and 3922
@@ -72,8 +89,8 @@ IngressRoute declares neither.
 ## cloudflared
 
 cloudflared runs two replicas, both on the single node, so that a rolling
-restart never drops the tunnel. Credentials come from Infisical, which is why
-it declares `dependsOn: external-secrets-crs`.
+restart never drops the tunnel. Credentials come from Infisical through an
+ExternalSecret.
 
 - The configuration is generated by `configMapGenerator`, so its content hash
   rolls the pods. A hand-written ConfigMap does not, and the pods keep serving
@@ -99,13 +116,16 @@ certificate, so there is no hard ordering against cert-manager.
 
 The Certificate lives in `kube-system` alongside Traefik and the TLSStore, but
 is defined under `cert-manager/issuers/` for ordering. That Kustomization waits
-on both cert-manager's CRDs and ESO's, with a long timeout, because `wait:
-true` blocks until the Certificate is ready and a first DNS-01 issuance takes
-minutes.
+on cert-manager's controller and CRDs; ESO's, needed for the Cloudflare token,
+are already in place from the `initialization` tier. `wait: true` blocks until
+the Certificate is ready, and a first DNS-01 issuance takes minutes, so the 5m
+timeout can lapse before it finishes. That is not fatal: the 1m retry
+reconciles again and the Certificate is usually Ready by then, since
+cert-manager keeps working on the order regardless of Flux.
 
 cert-manager self-checks propagation before asking Let's Encrypt to validate.
 By default it resolves through the pod's resolver, which leads to dnsmasq,
-CoreDNS and Technitium, where negative caching of `_acme-challenge` makes the
+CoreDNS and blocky, where negative caching of `_acme-challenge` makes the
 check stall or flap. `--dns01-recursive-nameservers-only` with public resolvers
 removes the local DNS stack from the issuance path.
 
@@ -186,26 +206,19 @@ SQLite file.
 
 ### OIDC
 
-Authelia provides the OIDC provider; there is no separate component. Two
-clients use it, the Flux UI and Technitium, because neither can read the
-`Remote-*` headers the middleware emits.
+Authelia provides the OIDC provider; there is no separate component. Its one
+client is the Flux UI, which cannot read the `Remote-*` headers the middleware
+emits.
 
-Each application fixes its own redirect URI: `flux.${DOMAIN}/oauth2/callback`
-and `dns.${DOMAIN}/sso/callback`. `offline_access` is in the Flux UI's default
-scope set, so its client has to permit that scope or authorization fails with
-`invalid_scope`.
+The redirect URI is `flux.${DOMAIN}/oauth2/callback`. `offline_access` is in
+the Flux UI's default scope set, so the client has to permit that scope or
+authorization fails with `invalid_scope`. The Flux UI also sends
+`access_type=offline` on the authorization request, set through
+`authURLParams`.
 
-The two clients need opposite accommodations:
-
-- **The Flux UI needs a claims policy.** It reads the ID token and never calls
-  the userinfo endpoint, so without a policy `claims.groups` is empty,
-  impersonation grants nothing, and the failure looks like broken RBAC.
-  Technitium reads userinfo and needs no policy.
-- **Technitium needs `token_endpoint_auth_method: client_secret_post`.**
-  Authelia defaults confidential clients to `client_secret_basic`, as the
-  specification requires, but ASP.NET's OIDC handler sends credentials in the
-  request body. The mismatch surfaces as `invalid_client` at the pushed
-  authorization endpoint, which resembles a wrong client secret.
+The client needs a claims policy. The Flux UI reads the ID token and never
+calls the userinfo endpoint, so without a policy `claims.groups` is empty,
+impersonation grants nothing, and the failure looks like broken RBAC.
 
 Neither `oidc.yml` nor the users database is stored as a blob. The
 ExternalSecret builds both
@@ -236,6 +249,13 @@ it. The URL is a literal, because no downward API field carries that address.
 Glance performs its own `${...}` pass afterwards, so anything meant for Glance
 is escaped as `$${...}`.
 
+The `releases` widget tracks upstream releases for the components this
+repository deploys, grouped as host, infrastructure and services. A new
+component needs a line there as well. The widget reads `$${GITHUB_TOKEN}` to
+lift GitHub's unauthenticated limit of 60 requests an hour. The variable comes
+from `glance/github-token` in Infisical through an ExternalSecret; a
+fine-grained token with no permissions is enough for public repositories.
+
 ## Copyparty
 
 Copyparty serves `/var/external` at `files.`. SFTP listens on 3922 through a
@@ -253,13 +273,15 @@ before the pod starts:
 - The partition is writable by UID 1000. The pod sets no `fsGroup`, which would
   rewrite group ownership across the partition on every mount.
 
-The header named by `idp-h-key` comes from `cluster-secrets`, a Secret beside
-`cluster-vars` in the Kustomization's `substituteFrom`. Every app stops
-reconciling while that key is absent.
+Copyparty takes `Remote-User` and `Remote-Groups` as it receives them. The
+Authelia middleware on `websecure` overwrites both headers on every routed
+request, so the identity holds for traffic through Traefik. No NetworkPolicy
+covers port 3923, and a pod that addresses the Service directly can claim any
+user.
 
 An SFTP user signs in through the browser once before copyparty holds an
-account to match the key against, and copyparty keeps that account after
-Authelia drops the user. Removing the key withdraws SFTP access.
+account to match an `sftp-key` against, and copyparty keeps that account after
+Authelia drops the user. Removing the `sftp-key` line withdraws SFTP access.
 
 Cloudflare caps a proxied request body at 100 MB. Browser uploads are chunked
 below it; a WebDAV `PUT` sends one request and fails above it.

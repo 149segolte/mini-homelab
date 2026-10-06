@@ -5,7 +5,7 @@ metadata:
   namespace: copyparty
 spec:
   # The entrypoint is declared in Traefik's HelmChartConfig
-  # (infrastructure/traefik). SSH carries no SNI, so the rule matches any
+  # (initialization/traefik). SSH carries no SNI, so the rule matches any
   # connection and the entrypoint itself is the routing decision.
   entryPoints:
     - sftp

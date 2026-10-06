@@ -17,13 +17,27 @@ and changed by commit.
 `wait: true`:
 
 ```
-policy (./infrastructure/kyverno) --> infrastructure --> apps
+initialization --> infrastructure --> apps
 ```
 
-Kyverno is absent from `infrastructure/kustomization.yaml`. Giving it a tier of
-its own places admission control ahead of everything it governs.
+`initialization` holds what the later tiers build on: Traefik's
+`HelmChartConfig`, which declares the entrypoints Ingresses and IngressRoutes
+attach to, and External Secrets Operator, whose CRDs and `ClusterSecretStore`
+every `ExternalSecret` needs. Because the tier waits on its nested
+Kustomizations, `infrastructure` starts only once the secret store is ready.
 
-All three tiers prune and substitute variables from the `cluster-vars`
+Every tier reconciles on a 10m interval and retries after 1m when a run
+fails, so a transient failure costs a minute rather than a full interval. The
+timeout bounds how long `wait: true` holds a run open and grows down the
+chain: 2m for `initialization`, 5m for `infrastructure`, 10m for `apps`.
+Nested Kustomizations and HelmReleases take their tier's timeout. Nested
+Kustomizations keep the 10m / 1m cadence, while HelmReleases, whose chart
+versions change only by commit, reconcile hourly.
+
+Admission control is not a tier. It lives in the apiserver and is in force
+before Flux applies anything ([Admission control](#admission-control)).
+
+Every tier prunes and substitutes variables from the `cluster-vars`
 ConfigMap. Substitution reaches only the manifests a Kustomization renders
 itself, so a nested Kustomization that uses a variable needs its own
 `postBuild`. It does reach generated ConfigMap content, which is how cloudflared
@@ -33,9 +47,9 @@ and Glance receive the domain.
 
 `cluster-vars` belongs to the cluster rather than to git, because
 `EXTERNAL_IP` is expected to change on a live one. It carries that plus
-`DOMAIN`, `ACME_EMAIL` and `LOCATION`. `infrastructure/bootstrap.yaml` holds
+`DOMAIN`, `ACME_EMAIL`, `LOCATION` and `TIMEZONE`. `initialization/bootstrap.yaml` holds
 the reference copy and is deliberately absent from
-`infrastructure/kustomization.yaml`, so Flux renders the directory without ever
+`initialization/kustomization.yaml`, so Flux renders the directory without ever
 adopting the file, and an edit in the cluster survives reconciliation.
 
 `flux-instance.yaml` patches kustomize-controller with
@@ -43,13 +57,17 @@ adopting the file, and an edit in the cluster survives reconciliation.
 tiers instead of waiting out the interval. The selector skips Helm storage
 Secrets.
 
+A component without internal ordering is a plain directory of manifests that
+the tier renders directly, so it inherits the tier's substitution and health
+checks and needs no Flux Kustomization of its own. authelia, cloudflared and
+flux-operator and blocky are laid out this way.
+
 A component with internal ordering repeats the pattern one level down: a
 directory of manifests, a Flux Kustomization pointing at it, and a
-`sources.yaml` for whatever it pulls from. external-secrets and external-dns
-both order `crds -> operator -> crs` this way. Other components declare
-`dependsOn: external-secrets-crs` across component boundaries. Each component
-declares its own namespace as a manifest rather than relying on
-`targetNamespace`, which keeps labels and deletion declarative.
+`sources.yaml` for whatever it pulls from. external-secrets orders
+`crds -> operator -> crs` this way, and cert-manager `controller -> issuers`.
+Each component declares its own namespace as a manifest rather than
+relying on `targetNamespace`, which keeps labels and deletion declarative.
 
 ## Bootstrapping
 
@@ -65,14 +83,14 @@ export KUBECONFIG=~/.kube/mini-homelab
 # flux-operator by hand: the FluxInstance CRD must exist before the manifest
 # using it. Flux adopts the release, as name and namespace match
 helm install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator \
-  --namespace flux-system --create-namespace --version 0.59.x
+  --namespace flux-system --create-namespace --version 0.61.x
 
 # pull secret. flux-instance.yaml sets provider: github, so App credentials
 flux create secret githubapp flux-system \
   --app-id=<id> --app-installation-id=<id> --app-private-key=<key>.pem
 
 # cluster-vars, before handover, or every tier fails variable substitution
-kubectl apply -f infrastructure/bootstrap.yaml
+kubectl apply -f initialization/bootstrap.yaml
 
 # hand over. Flux then reconciles clusters/rpi4, including flux-instance.yaml
 kubectl apply -f clusters/rpi4/flux-instance.yaml
@@ -83,8 +101,7 @@ kubectl create secret generic infisical-universal-auth --namespace external-secr
   --from-literal=clientId=<id> --from-literal=clientSecret=<secret>
 ```
 
-The tiers then settle in order. A stalled `policy` tier presents as unrelated
-pods refusing to schedule, because Kyverno fails closed.
+The tiers then settle in order.
 
 ## Secrets
 
@@ -94,8 +111,8 @@ through External Secrets Operator, which installs in three ordered steps:
 
 | Step       | Source                        | Notes                                                    |
 | ---------- | ----------------------------- | -------------------------------------------------------- |
-| `crds`     | Upstream git at tag `v2.10.0` | CRDs only; `ignore` rules fetch just `config/crds/bases` |
-| `operator` | Helm chart `2.10.0`           | `installCRDs: false`                                     |
+| `crds`     | Upstream git at tag `v2.11.0` | CRDs only; `ignore` rules fetch just `config/crds/bases` |
+| `operator` | Helm chart `2.11.0`           | `installCRDs: false`                                     |
 | `crs`      | This repository               | The `ClusterSecretStore`                                 |
 
 Taking the CRDs from git with `wait: true` means the operator never starts
@@ -132,38 +149,35 @@ Three constraints apply:
 
 ## Admission control
 
-Two layers enforce pod security:
+Pod security is enforced entirely inside the apiserver, through
+`admission-control-config-file` ([Host](host.md#k3s)). Two in-tree plugins
+share the file:
 
-| Layer                  | Where              | Enforces                    | Failure mode                            |
-| ---------------------- | ------------------ | --------------------------- | --------------------------------------- |
-| Pod Security Admission | Apiserver, in-tree | `baseline`                  | Cannot fail; no webhook and no network  |
-| Kyverno                | Admission webhook  | `restricted`, plus mutation | Admission stops for governed namespaces |
+| Plugin                    | Role                                        |
+| ------------------------- | ------------------------------------------- |
+| `MutatingAdmissionPolicy` | Fills in the `restricted` boilerplate       |
+| `PodSecurity`             | Enforces `restricted`, `kube-system` exempt |
 
-PSA is the floor, configured through `admission-control-config-file`
-([Host](host.md#k3s)) with `enforce: baseline`, `audit` and `warn` at
-`restricted`, and `kube-system` exempt. It is set at the apiserver rather than
-through namespace labels, because a default has to apply to namespaces nobody
-has labelled.
+Neither involves a webhook or the network, so neither can fail closed during an
+outage, and no Flux tier has to come up before the workloads it governs. The
+default is set at the apiserver rather than through namespace labels, because
+it has to apply to namespaces nobody has labelled. No namespace carries PSA
+labels of its own.
 
-Kyverno runs as its own tier, so it is live before anything it governs.
-`add-default-securitycontext` mutates pods outside the exempt namespaces and
-adds only what is missing; the `+(field)` anchor never overwrites.
-`validate-pod-security-restricted` then enforces `restricted`. Mutation runs
-first, so a workload that merely omits the boilerplate is corrected rather than
-rejected. No namespace carries PSA labels of its own.
+### Mutation
 
-### failurePolicy: Fail
+`pod-security-defaults.static.k8s.io` is a static policy, loaded from
+`/etc/rancher/k3s/admission/mutating-policies/` rather than from the API. It
+ships with the image, so it changes by image upgrade, not by Flux. On pod
+`CREATE` outside `kube-system` it adds only what is missing:
 
-An unreachable webhook rejects a pod regardless of whether it would have
-passed. The namespaces that must come up during an outage never consult it,
-which is what makes the failure mode safe. `kube-system` and `flux-system` are
-excluded by `config.webhooks.namespaceSelector`, and `kyverno` by the chart's
-own default.
+- `seccompProfile: RuntimeDefault` at pod level, which covers every container.
+- `allowPrivilegeEscalation: false` on each container and init container.
+- `capabilities.drop: [ALL]` where a container declares no `capabilities` at
+  all. The list is atomic, so a container that sets `capabilities` of its own
+  is left alone and has to drop `ALL` itself.
 
-The policies also exclude `flux-system` in their own `exclude` blocks, but a
-policy-level exclusion still requires Kyverno to be reachable before it can be
-consulted, which would place the recovery mechanism behind the failure.
-
-Governed namespaces cannot schedule pods while Kyverno is down, external
-access included. Recovery paths remain open throughout: kubectl over the admin
-AP, Flux reconciling a fix, or deleting the webhook configurations by hand.
+Mutating admission runs before validating admission, so a workload that merely
+omits the boilerplate is corrected rather than rejected. `runAsNonRoot` is not
+defaulted; a workload has to declare it, which keeps the choice of a non-root
+image with the workload.

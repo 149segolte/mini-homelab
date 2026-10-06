@@ -5,4 +5,4 @@ resolv-conf: /etc/rancher/k3s/resolv.conf
 kubelet-arg:
   - config=/etc/rancher/k3s/kubelet.config
 kube-apiserver-arg:
-  - admission-control-config-file=/etc/rancher/k3s/psa.yaml
+  - admission-control-config-file=/etc/rancher/k3s/admission.yaml
