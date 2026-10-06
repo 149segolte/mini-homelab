@@ -4,15 +4,14 @@ metadata:
   name: cert-manager-issuers
   namespace: flux-system
 spec:
-  dependsOn:
-    - name: cert-manager-controller
-  interval: 1h
+  interval: 10m
+  timeout: 5m
   retryInterval: 1m
-  # wait blocks on cert going Ready, and first DNS-01 issuance takes minutes.
-  timeout: 10m
   path: ./infrastructure/cert-manager/issuers
   prune: true
   wait: true
+  dependsOn:
+    - name: cert-manager-controller
   sourceRef:
     kind: GitRepository
     name: flux-system

@@ -4,11 +4,9 @@ metadata:
   name: letsencrypt
 spec:
   acme:
-    # Staging until a certificate issues cleanly. Production allows 5 duplicate
-    # certificates per week and a DNS-01 misconfiguration burns them fast.
     # To flip: swap to https://acme-v02.api.letsencrypt.org/directory and
     # delete the wildcard-tls secret so it re-issues.
-    # server: https://acme-staging-v02.api.letsencrypt.org/directory
+    #server: https://acme-staging-v02.api.letsencrypt.org/directory
     server: https://acme-v02.api.letsencrypt.org/directory
     email: ${ACME_EMAIL:?set ACME_EMAIL in initialization/bootstrap.yaml}
     privateKeySecretRef:

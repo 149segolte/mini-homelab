@@ -18,7 +18,8 @@ spec:
           image: traefik/whoami:v1.12.0
           args: ["--port=8080"]
           ports:
-            - containerPort: 8080
+            - name: http
+              containerPort: 8080
           securityContext:
             runAsNonRoot: true
             # By default, container does not set a user. Changing to non-root.

@@ -5,7 +5,8 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
-  timeout: 10m
+  timeout: 5m
+  retryInterval: 1m
   path: ./infrastructure
   prune: true
   wait: true
