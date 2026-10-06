@@ -6,7 +6,6 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
-  - middleware.yaml
   - servers-transport.yaml
   - ingress.yaml
   - ingressroute-tcp.yaml

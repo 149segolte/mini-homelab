@@ -5,7 +5,6 @@ metadata:
   namespace: copyparty
   annotations:
     external-dns.kubernetes.io/target: node.${DOMAIN}
-    traefik.ingress.kubernetes.io/router.middlewares: copyparty-idp-key@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:
