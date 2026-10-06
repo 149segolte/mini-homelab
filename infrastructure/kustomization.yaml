@@ -5,5 +5,4 @@ resources:
   - authelia
   - flux-operator
   - cloudflared
-  - technitium
-  - external-dns
+  - blocky

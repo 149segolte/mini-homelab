@@ -31,8 +31,6 @@ spec:
     ingressRoute:
       dashboard:
         enabled: true
-        annotations:
-          external-dns.kubernetes.io/target: node.${DOMAIN}
         matchRule: Host(`traefik.${DOMAIN}`)
         entryPoints:
           - websecure

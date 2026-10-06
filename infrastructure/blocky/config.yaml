@@ -1,0 +1,43 @@
+ports:
+  dns: 5300
+  http: 4000
+statistics:
+  enable: true
+dnssec:
+  validate: true
+
+upstreams:
+  strategy: strict
+  groups:
+    default:
+      # Cloudflare Family - No Logs, Filtering
+      - sdns://AgMAAAAAAAAABzEuMC4wLjMABzEuMC4wLjMKL2Rucy1xdWVyeQ
+      # Google - Logs, No Filtering
+      - sdns://AgUAAAAAAAAABzguOC44LjggalBisNF41VbxY7E7Gw8ZQ10CWIKRzHVYnf7m6xHI1cMHOC44LjguOAovZG5zLXF1ZXJ5
+
+blocking:
+  loading:
+    refreshPeriod: 24h
+  denylists:
+    ads:
+      - https://hagezi-mirror.dnsbunker.org/wildcard/pro.txt
+      - https://hagezi-mirror.dnsbunker.org/wildcard/tif.mini.txt
+      - https://hagezi-mirror.dnsbunker.org/wildcard/nsfw.txt
+      - https://hagezi-mirror.dnsbunker.org/wildcard/gambling.mini.txt
+  clientGroupsBlock:
+    default:
+      - ads
+
+customDNS:
+  zone: |
+    $ORIGIN ${DOMAIN}.
+    node                  3600      IN  A             ${EXTERNAL_IP}
+    ;node                  3600      IN  HTTPS         1 . alpn="h3,h2"
+    traefik               300       IN  CNAME         node
+    dns                   300       IN  CNAME         node
+    doh                   300       IN  CNAME         node
+    auth                  300       IN  CNAME         node
+    flux                  300       IN  CNAME         node
+    whoami                300       IN  CNAME         node
+    mini                  300       IN  CNAME         node
+    files                 300       IN  CNAME         node

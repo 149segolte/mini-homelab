@@ -3,8 +3,6 @@ kind: Ingress
 metadata:
   name: glance
   namespace: glance
-  annotations:
-    external-dns.kubernetes.io/target: node.${DOMAIN}
 spec:
   ingressClassName: traefik
   rules:

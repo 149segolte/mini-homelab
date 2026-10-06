@@ -1,6 +1,6 @@
 .:53 {
     errors
-    cache 30
+    cache 10
     hosts /etc/coredns/hosts {
         fallthrough
     }

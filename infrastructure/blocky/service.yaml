@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: technitium
-  namespace: technitium
+  name: blocky
+  namespace: blocky
 spec:
   # Fixed because the host's CoreDNS forwards here.
   clusterIP: 10.43.0.53
   selector:
-    app: technitium
+    app: blocky
   ports:
     - name: dns-udp
       port: 53
@@ -18,8 +18,6 @@ spec:
       protocol: TCP
       targetPort: dns-tcp
     - name: http
-      port: 5380
+      port: 4000
+      protocol: TCP
       targetPort: http
-    - name: doh
-      port: 80
-      targetPort: doh
