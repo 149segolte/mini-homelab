@@ -49,13 +49,18 @@ adopting the file, and an edit in the cluster survives reconciliation.
 tiers instead of waiting out the interval. The selector skips Helm storage
 Secrets.
 
+A component without internal ordering is a plain directory of manifests that
+the tier renders directly, so it inherits the tier's substitution and health
+checks and needs no Flux Kustomization of its own. authelia, cloudflared and
+flux-operator are laid out this way.
+
 A component with internal ordering repeats the pattern one level down: a
 directory of manifests, a Flux Kustomization pointing at it, and a
 `sources.yaml` for whatever it pulls from. external-secrets and external-dns
 both order `crds -> operator -> crs` this way. Tier order already places
-`external-secrets-crs` ahead of every `infrastructure` component; some still
-declare `dependsOn: external-secrets-crs` as well, which is redundant but
-harmless. Each component declares its own namespace as a manifest rather than
+`external-secrets-crs` ahead of every `infrastructure` component; technitium
+and external-dns still declare `dependsOn: external-secrets-crs` as well, which
+is redundant but harmless. Each component declares its own namespace as a manifest rather than
 relying on `targetNamespace`, which keeps labels and deletion declarative.
 
 ## Bootstrapping
@@ -72,7 +77,7 @@ export KUBECONFIG=~/.kube/mini-homelab
 # flux-operator by hand: the FluxInstance CRD must exist before the manifest
 # using it. Flux adopts the release, as name and namespace match
 helm install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator \
-  --namespace flux-system --create-namespace --version 0.59.x
+  --namespace flux-system --create-namespace --version 0.61.x
 
 # pull secret. flux-instance.yaml sets provider: github, so App credentials
 flux create secret githubapp flux-system \
