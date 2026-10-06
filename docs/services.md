@@ -50,7 +50,9 @@ constrain the provider:
 Traefik ships with k3s and is configured in place with a `HelmChartConfig`
 rather than replaced. The configuration sets a redirect from `web` to
 `websecure`, JSON access logs, and the Authelia middleware on the `websecure`
-entrypoint.
+entrypoint. It is applied in the `initialization` tier
+([Cluster](cluster.md#tiers)), so the entrypoints exist before anything routes
+to them.
 
 Host ports are not used. Traefik's Service is a ClusterIP carrying
 `EXTERNAL_IP` as its one `externalIP`, so kube-proxy rewrites 80, 443 and 3922
@@ -99,9 +101,10 @@ certificate, so there is no hard ordering against cert-manager.
 
 The Certificate lives in `kube-system` alongside Traefik and the TLSStore, but
 is defined under `cert-manager/issuers/` for ordering. That Kustomization waits
-on both cert-manager's CRDs and ESO's, with a long timeout, because `wait:
-true` blocks until the Certificate is ready and a first DNS-01 issuance takes
-minutes.
+on cert-manager's controller and CRDs; ESO's, needed for the Cloudflare token,
+are already in place from the `initialization` tier. Its timeout is long
+because `wait: true` blocks until the Certificate is ready and a first DNS-01
+issuance takes minutes.
 
 cert-manager self-checks propagation before asking Let's Encrypt to validate.
 By default it resolves through the pod's resolver, which leads to dnsmasq,

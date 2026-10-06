@@ -17,13 +17,19 @@ and changed by commit.
 `wait: true`:
 
 ```
-infrastructure --> apps
+initialization --> infrastructure --> apps
 ```
+
+`initialization` holds what the later tiers build on: Traefik's
+`HelmChartConfig`, which declares the entrypoints Ingresses and IngressRoutes
+attach to, and External Secrets Operator, whose CRDs and `ClusterSecretStore`
+every `ExternalSecret` needs. Because the tier waits on its nested
+Kustomizations, `infrastructure` starts only once the secret store is ready.
 
 Admission control is not a tier. It lives in the apiserver and is in force
 before Flux applies anything ([Admission control](#admission-control)).
 
-Both tiers prune and substitute variables from the `cluster-vars`
+Every tier prunes and substitutes variables from the `cluster-vars`
 ConfigMap. Substitution reaches only the manifests a Kustomization renders
 itself, so a nested Kustomization that uses a variable needs its own
 `postBuild`. It does reach generated ConfigMap content, which is how cloudflared
@@ -33,9 +39,9 @@ and Glance receive the domain.
 
 `cluster-vars` belongs to the cluster rather than to git, because
 `EXTERNAL_IP` is expected to change on a live one. It carries that plus
-`DOMAIN`, `ACME_EMAIL` and `LOCATION`. `infrastructure/bootstrap.yaml` holds
+`DOMAIN`, `ACME_EMAIL` and `LOCATION`. `initialization/bootstrap.yaml` holds
 the reference copy and is deliberately absent from
-`infrastructure/kustomization.yaml`, so Flux renders the directory without ever
+`initialization/kustomization.yaml`, so Flux renders the directory without ever
 adopting the file, and an edit in the cluster survives reconciliation.
 
 `flux-instance.yaml` patches kustomize-controller with
@@ -46,10 +52,11 @@ Secrets.
 A component with internal ordering repeats the pattern one level down: a
 directory of manifests, a Flux Kustomization pointing at it, and a
 `sources.yaml` for whatever it pulls from. external-secrets and external-dns
-both order `crds -> operator -> crs` this way. Other components declare
-`dependsOn: external-secrets-crs` across component boundaries. Each component
-declares its own namespace as a manifest rather than relying on
-`targetNamespace`, which keeps labels and deletion declarative.
+both order `crds -> operator -> crs` this way. Tier order already places
+`external-secrets-crs` ahead of every `infrastructure` component; some still
+declare `dependsOn: external-secrets-crs` as well, which is redundant but
+harmless. Each component declares its own namespace as a manifest rather than
+relying on `targetNamespace`, which keeps labels and deletion declarative.
 
 ## Bootstrapping
 
@@ -72,7 +79,7 @@ flux create secret githubapp flux-system \
   --app-id=<id> --app-installation-id=<id> --app-private-key=<key>.pem
 
 # cluster-vars, before handover, or every tier fails variable substitution
-kubectl apply -f infrastructure/bootstrap.yaml
+kubectl apply -f initialization/bootstrap.yaml
 
 # hand over. Flux then reconciles clusters/rpi4, including flux-instance.yaml
 kubectl apply -f clusters/rpi4/flux-instance.yaml
@@ -93,8 +100,8 @@ through External Secrets Operator, which installs in three ordered steps:
 
 | Step       | Source                        | Notes                                                    |
 | ---------- | ----------------------------- | -------------------------------------------------------- |
-| `crds`     | Upstream git at tag `v2.10.0` | CRDs only; `ignore` rules fetch just `config/crds/bases` |
-| `operator` | Helm chart `2.10.0`           | `installCRDs: false`                                     |
+| `crds`     | Upstream git at tag `v2.11.0` | CRDs only; `ignore` rules fetch just `config/crds/bases` |
+| `operator` | Helm chart `2.11.0`           | `installCRDs: false`                                     |
 | `crs`      | This repository               | The `ClusterSecretStore`                                 |
 
 Taking the CRDs from git with `wait: true` means the operator never starts
