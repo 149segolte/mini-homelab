@@ -5,6 +5,8 @@ metadata:
   namespace: flux-system
 spec:
   interval: 10m
+  timeout: 2m
+  retryInterval: 1m
   path: ./config/crds/bases
   prune: true
   wait: true

@@ -4,12 +4,14 @@ metadata:
   name: external-secrets-crs
   namespace: flux-system
 spec:
+  interval: 10m
+  timeout: 2m
+  retryInterval: 1m
+  path: ./initialization/external-secrets/crs
+  prune: true
+  wait: true
   dependsOn:
     - name: external-secrets-operator
-  interval: 10m
-  retryInterval: 1m
-  path: ./infrastructure/external-secrets/crs
-  prune: true
   sourceRef:
     kind: GitRepository
     name: flux-system

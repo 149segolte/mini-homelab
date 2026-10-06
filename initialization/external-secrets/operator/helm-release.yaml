@@ -4,13 +4,14 @@ metadata:
   name: external-secrets
   namespace: flux-system
 spec:
-  interval: 30m
+  interval: 1h
+  timeout: 2m
   releaseName: external-secrets
   targetNamespace: external-secrets
   chart:
     spec:
       chart: external-secrets
-      version: "2.10.0"
+      version: "2.11.0"
       sourceRef:
         kind: HelmRepository
         name: external-secrets

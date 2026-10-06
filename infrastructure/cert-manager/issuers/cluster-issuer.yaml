@@ -10,7 +10,7 @@ spec:
     # delete the wildcard-tls secret so it re-issues.
     # server: https://acme-staging-v02.api.letsencrypt.org/directory
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: ${ACME_EMAIL:?set ACME_EMAIL in clusters/rpi4/cluster-vars.yaml}
+    email: ${ACME_EMAIL:?set ACME_EMAIL in initialization/bootstrap.yaml}
     privateKeySecretRef:
       name: letsencrypt-account-key
     solvers:

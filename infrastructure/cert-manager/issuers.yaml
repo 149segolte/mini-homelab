@@ -4,11 +4,8 @@ metadata:
   name: cert-manager-issuers
   namespace: flux-system
 spec:
-  # cert-manager's CRDs for the ClusterIssuer and Certificate, ESO's for the
-  # ExternalSecret holding the Cloudflare token.
   dependsOn:
     - name: cert-manager-controller
-    - name: external-secrets-crs
   interval: 1h
   retryInterval: 1m
   # wait blocks on cert going Ready, and first DNS-01 issuance takes minutes.
