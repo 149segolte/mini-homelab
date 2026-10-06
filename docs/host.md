@@ -248,8 +248,10 @@ installer and adds two directives:
   answers in either mode ([DNS](#dns)).
 - `kubelet-arg` sets `config=kubelet.config`, a 30 s shutdown grace and 10 s
   for critical pods, so an upgrade reboot drains.
-- `kube-apiserver-arg` sets `admission-control-config-file=psa.yaml` for Pod
-  Security Admission ([Cluster](cluster.md#admission-control)).
+- `kube-apiserver-arg` sets `admission-control-config-file=admission.yaml`,
+  which configures Pod Security Admission and the static mutating policies
+  under `admission/mutating-policies/`
+  ([Cluster](cluster.md#admission-control)).
 
 Traefik ships with k3s and is configured in place rather than replaced
 ([Services](services.md#traefik)). `k3s-killall.sh` is included for stops that

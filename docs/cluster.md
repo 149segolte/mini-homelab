@@ -17,13 +17,13 @@ and changed by commit.
 `wait: true`:
 
 ```
-policy (./infrastructure/kyverno) --> infrastructure --> apps
+infrastructure --> apps
 ```
 
-Kyverno is absent from `infrastructure/kustomization.yaml`. Giving it a tier of
-its own places admission control ahead of everything it governs.
+Admission control is not a tier. It lives in the apiserver and is in force
+before Flux applies anything ([Admission control](#admission-control)).
 
-All three tiers prune and substitute variables from the `cluster-vars`
+Both tiers prune and substitute variables from the `cluster-vars`
 ConfigMap. Substitution reaches only the manifests a Kustomization renders
 itself, so a nested Kustomization that uses a variable needs its own
 `postBuild`. It does reach generated ConfigMap content, which is how cloudflared
@@ -83,8 +83,7 @@ kubectl create secret generic infisical-universal-auth --namespace external-secr
   --from-literal=clientId=<id> --from-literal=clientSecret=<secret>
 ```
 
-The tiers then settle in order. A stalled `policy` tier presents as unrelated
-pods refusing to schedule, because Kyverno fails closed.
+The tiers then settle in order.
 
 ## Secrets
 
@@ -132,38 +131,35 @@ Three constraints apply:
 
 ## Admission control
 
-Two layers enforce pod security:
+Pod security is enforced entirely inside the apiserver, through
+`admission-control-config-file` ([Host](host.md#k3s)). Two in-tree plugins
+share the file:
 
-| Layer                  | Where              | Enforces                    | Failure mode                            |
-| ---------------------- | ------------------ | --------------------------- | --------------------------------------- |
-| Pod Security Admission | Apiserver, in-tree | `baseline`                  | Cannot fail; no webhook and no network  |
-| Kyverno                | Admission webhook  | `restricted`, plus mutation | Admission stops for governed namespaces |
+| Plugin                    | Role                                        |
+| ------------------------- | ------------------------------------------- |
+| `MutatingAdmissionPolicy` | Fills in the `restricted` boilerplate       |
+| `PodSecurity`             | Enforces `restricted`, `kube-system` exempt |
 
-PSA is the floor, configured through `admission-control-config-file`
-([Host](host.md#k3s)) with `enforce: baseline`, `audit` and `warn` at
-`restricted`, and `kube-system` exempt. It is set at the apiserver rather than
-through namespace labels, because a default has to apply to namespaces nobody
-has labelled.
+Neither involves a webhook or the network, so neither can fail closed during an
+outage, and no Flux tier has to come up before the workloads it governs. The
+default is set at the apiserver rather than through namespace labels, because
+it has to apply to namespaces nobody has labelled. No namespace carries PSA
+labels of its own.
 
-Kyverno runs as its own tier, so it is live before anything it governs.
-`add-default-securitycontext` mutates pods outside the exempt namespaces and
-adds only what is missing; the `+(field)` anchor never overwrites.
-`validate-pod-security-restricted` then enforces `restricted`. Mutation runs
-first, so a workload that merely omits the boilerplate is corrected rather than
-rejected. No namespace carries PSA labels of its own.
+### Mutation
 
-### failurePolicy: Fail
+`pod-security-defaults.static.k8s.io` is a static policy, loaded from
+`/etc/rancher/k3s/admission/mutating-policies/` rather than from the API. It
+ships with the image, so it changes by image upgrade, not by Flux. On pod
+`CREATE` outside `kube-system` it adds only what is missing:
 
-An unreachable webhook rejects a pod regardless of whether it would have
-passed. The namespaces that must come up during an outage never consult it,
-which is what makes the failure mode safe. `kube-system` and `flux-system` are
-excluded by `config.webhooks.namespaceSelector`, and `kyverno` by the chart's
-own default.
+- `seccompProfile: RuntimeDefault` at pod level, which covers every container.
+- `allowPrivilegeEscalation: false` on each container and init container.
+- `capabilities.drop: [ALL]` where a container declares no `capabilities` at
+  all. The list is atomic, so a container that sets `capabilities` of its own
+  is left alone and has to drop `ALL` itself.
 
-The policies also exclude `flux-system` in their own `exclude` blocks, but a
-policy-level exclusion still requires Kyverno to be reachable before it can be
-consulted, which would place the recovery mechanism behind the failure.
-
-Governed namespaces cannot schedule pods while Kyverno is down, external
-access included. Recovery paths remain open throughout: kubectl over the admin
-AP, Flux reconciling a fix, or deleting the webhook configurations by hand.
+Mutating admission runs before validating admission, so a workload that merely
+omits the boilerplate is corrected rather than rejected. `runAsNonRoot` is not
+defaulted; a workload has to declare it, which keeps the choice of a non-root
+image with the workload.
