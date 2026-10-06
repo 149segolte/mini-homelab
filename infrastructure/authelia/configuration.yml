@@ -46,14 +46,14 @@ access_control:
     # Authelia's own portal.
     - domain: auth.${DOMAIN}
       policy: bypass
-    # DoH clients cannot follow a browser redirect.
+    # DoH clients cannot do auth.
     - domain: doh.${DOMAIN}
       policy: bypass
       resources:
         - "^/dns-query([/?].*)?$"
+    # One-factor auth for automated clients.
     - domain: whoami.${DOMAIN}
       policy: one_factor
-    # WebDAV and sync clients cannot follow a browser redirect.
     - domain: files.${DOMAIN}
       policy: one_factor
     # Two-factor authentication for all other domains.

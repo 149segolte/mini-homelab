@@ -8,7 +8,7 @@ spec:
     # 4.38+ endpoint; the old /api/verify?rd= form is deprecated.
     address: http://authelia.authelia.svc.cluster.local:9091/api/authz/forward-auth
     trustForwardHeader: true
-    maxResponseBodySize: 8192
+    maxResponseBodySize: 16384
     authResponseHeaders:
       - Remote-User
       - Remote-Groups
