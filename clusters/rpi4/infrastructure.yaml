@@ -4,9 +4,6 @@ metadata:
   name: infrastructure
   namespace: flux-system
 spec:
-  # Admission policy is live before anything it would govern is applied.
-  dependsOn:
-    - name: policy
   interval: 10m
   timeout: 10m
   path: ./infrastructure
