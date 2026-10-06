@@ -253,13 +253,15 @@ before the pod starts:
 - The partition is writable by UID 1000. The pod sets no `fsGroup`, which would
   rewrite group ownership across the partition on every mount.
 
-The header named by `idp-h-key` comes from `cluster-secrets`, a Secret beside
-`cluster-vars` in the Kustomization's `substituteFrom`. Every app stops
-reconciling while that key is absent.
+Copyparty takes `Remote-User` and `Remote-Groups` as it receives them. The
+Authelia middleware on `websecure` overwrites both headers on every routed
+request, so the identity holds for traffic through Traefik. No NetworkPolicy
+covers port 3923, and a pod that addresses the Service directly can claim any
+user.
 
 An SFTP user signs in through the browser once before copyparty holds an
-account to match the key against, and copyparty keeps that account after
-Authelia drops the user. Removing the key withdraws SFTP access.
+account to match an `sftp-key` against, and copyparty keeps that account after
+Authelia drops the user. Removing the `sftp-key` line withdraws SFTP access.
 
 Cloudflare caps a proxied request body at 100 MB. Browser uploads are chunked
 below it; a WebDAV `PUT` sends one request and fails above it.
