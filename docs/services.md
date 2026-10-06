@@ -247,6 +247,13 @@ it. The URL is a literal, because no downward API field carries that address.
 Glance performs its own `${...}` pass afterwards, so anything meant for Glance
 is escaped as `$${...}`.
 
+The `releases` widget tracks upstream releases for the components this
+repository deploys, grouped as host, infrastructure and services. A new
+component needs a line there as well. The widget reads `$${GITHUB_TOKEN}` to
+lift GitHub's unauthenticated limit of 60 requests an hour. The variable comes
+from `glance/github-token` in Infisical through an ExternalSecret; a
+fine-grained token with no permissions is enough for public repositories.
+
 ## Copyparty
 
 Copyparty serves `/var/external` at `files.`. SFTP listens on 3922 through a
