@@ -1,34 +1,34 @@
-name: bootc-ci
+name: bootc
 
 on:
   push:
     branches: [main]
     paths:
-      - .github/workflows/bootc*
+      - .github/workflows/bootc.yml
       - bootc/**
       - build.py
   pull_request:
     branches: [main]
     paths:
-      - .github/workflows/bootc*
+      - .github/workflows/bootc.yml
       - bootc/**
       - build.py
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: bootc-${{ github.ref }}
+  # A superseded pull request run is wasted work. A push run may be mid-push.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   GIT_REF: ${{ github.head_ref || github.ref_name }}
   GIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
   GHCR_REGISTRY: ghcr.io/${{ github.repository_owner }}
-  GHCR_REGISTRY_USER: ${{ github.actor }}
-  GHCR_REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+  QUAY_REGISTRY: quay.io/${{ github.repository_owner }}
 
 jobs:
-  lint-and-build:
+  build:
     runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
@@ -52,13 +52,28 @@ jobs:
       - name: Set up `uv`
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
 
+      # Also the build cache, so this runs on a pull request too.
       - name: Log in to ghcr.io
         uses: redhat-actions/podman-login@v1
         with:
-          username: ${{ env.GHCR_REGISTRY_USER }}
-          password: ${{ env.GHCR_REGISTRY_PASSWORD }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
           registry: ${{ env.GHCR_REGISTRY }}
 
       # A passing build is also a passing `bootc container lint`.
       - name: Build
         run: ./build.py build --tag ${{ steps.vars.outputs.tag }} --cache-registry ${{ env.GHCR_REGISTRY }}
+
+      - name: Log in to quay.io
+        if: github.event_name != 'pull_request'
+        uses: redhat-actions/podman-login@v1
+        with:
+          username: ${{ secrets.QUAY_REGISTRY_USER }}
+          password: ${{ secrets.QUAY_REGISTRY_PASSWORD }}
+          registry: ${{ env.QUAY_REGISTRY }}
+
+      - name: Push
+        if: github.event_name != 'pull_request'
+        run: |
+          ./build.py push --tag ${{ steps.vars.outputs.tag }} ${{ env.GHCR_REGISTRY }}
+          ./build.py push --tag ${{ steps.vars.outputs.tag }} ${{ env.QUAY_REGISTRY }}

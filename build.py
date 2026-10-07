@@ -12,6 +12,7 @@
 
 import argparse
 import inspect
+import os
 import shlex
 import subprocess
 import sys
@@ -27,20 +28,22 @@ TAG = "latest"
 # --- BEGIN: Project tasks ---
 
 
-def build(tag: str = TAG, cache_registry: str = "") -> None:
+def build(tag: str = TAG, cache_registry: str = "", timestamp: str = "") -> None:
     """Build the host image. `bootc container lint` runs inside the build.
 
     Args:
         tag: The image tag to use.
         cache_registry: The cache registry to use for the build. (pushed to `{IMAGE}-cache`)
+        timestamp: Unix seconds for SOURCE_DATE_EPOCH. Defaults to the last commit's.
     """
     cache = f"{cache_registry}/{IMAGE}-cache" if cache_registry else None
     _run(
-        *["podman", "build"],
+        *["podman", "build", "--rewrite-timestamp"],
         *["--platform", PLATFORM],
         *["-t", f"{IMAGE}:{tag}"],
         *(["--layers", "--cache-from", cache, "--cache-to", cache] if cache else []),
         "bootc/",
+        env={"SOURCE_DATE_EPOCH": timestamp or _commit_epoch()},
     )
 
 
@@ -130,12 +133,38 @@ def _deployment_root(target: Path) -> Path:
     return found[0] if found else target
 
 
-def _run(*cmd: str, quiet: Literal["off", "echo", "output", "full"] = "off") -> None:
+def _commit_epoch() -> str:
+    """Committer date of HEAD, in unix seconds."""
+    result = subprocess.run(
+        ["git", "-C", str(FILE_LOCATION), "log", "-1", "--format=%ct"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        print(
+            "Error: no commit to take a timestamp from; pass --timestamp",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    return result.stdout.strip()
+
+
+def _run(
+    *cmd: str,
+    quiet: Literal["off", "echo", "output", "full"] = "off",
+    env: dict[str, str] | None = None,
+) -> None:
     """Echo a command, then run it, failing the script if it fails."""
     if quiet not in ("echo", "full"):
-        print("[CMD]>", shlex.join(cmd), file=sys.stderr)
+        assignments = "".join(f"{k}={shlex.quote(v)} " for k, v in (env or {}).items())
+        print(f"[CMD]> {assignments}{shlex.join(cmd)}", file=sys.stderr)
     try:
-        _ = subprocess.run(cmd, check=True, capture_output=quiet in ("output", "full"))
+        _ = subprocess.run(
+            cmd,
+            check=True,
+            capture_output=quiet in ("output", "full"),
+            env={**os.environ, **env} if env else None,
+        )
     except subprocess.CalledProcessError as err:
         print(f"Error: failed to run `{shlex.join(cmd)}`", file=sys.stderr)
         sys.exit(err.returncode)
