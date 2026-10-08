@@ -8,8 +8,8 @@ LAN / tailnet ---------------------------------------> Traefik --> Ingress
 ```
 
 Hostnames are built from `${DOMAIN}` in `cluster-vars`. Public records live in
-Cloudflare, outside this repository. Internal records are served by blocky
-from a zone held in git.
+Cloudflare, outside this repository. Internal records are served by blocky from
+a zone held in git.
 
 | Host           | Service                                           |
 | -------------- | ------------------------------------------------- |
@@ -24,31 +24,27 @@ from a zone held in git.
 ## DNS
 
 blocky is the resolver for the whole machine. The host's CoreDNS forwards to
-its Service at 10.43.0.53 ([Host](host.md#dns)), a fixed `clusterIP` because
-the Corefile references it literally. blocky keeps no state, so the Deployment
-runs two replicas and a restart loses only the cache and the downloaded
-blocklists.
+its Service at a fixed 10.43.0.53 ([Host](host.md#dns)). blocky keeps no state,
+so the Deployment runs two replicas and a restart loses only the cache and the
+downloaded blocklists.
 
-- The upstreams are DNS stamps that carry IP addresses. A hostname would have
-  to be resolved first, and the pod resolves through the host's CoreDNS, which
-  forwards back to blocky.
-- Internal records are the `customDNS.zone` block. Each name is a CNAME to
-  `node.`, whose single A record takes `EXTERNAL_IP` from `cluster-vars`
-  ([Cluster](cluster.md#cluster-vars)). A published hostname needs a line there
-  as well as an Ingress. A missing record resolves publicly and takes the
-  tunnel, which is slower but works. `files.` is the exception, because the
-  tunnel carries HTTP alone and SFTP on 3922 then has no route at all.
+- The upstreams are DNS stamps carrying IP addresses. A hostname would have to
+  be resolved first, and the pod resolves through CoreDNS, which forwards back
+  to blocky.
+- Internal records are the `customDNS.zone` block, each a CNAME to `node.`,
+  whose A record takes `EXTERNAL_IP`. A published hostname needs a line there
+  as well as an Ingress. A missing one resolves publicly and takes the tunnel,
+  which works for HTTP; `files.` is the exception, because SFTP on 3922 then
+  has no route at all.
 - Flux substitutes `cluster-vars` after kustomize has hashed the ConfigMap
-  name, and blocky reads its configuration only at startup. A change to
-  `EXTERNAL_IP` therefore takes effect after a restart of the Deployment.
+  name, and blocky reads its configuration only at startup, so a change to
+  `EXTERNAL_IP` takes effect on a restart of the Deployment.
 - `dns.` and `doh.` get no public record. blocky has no client ACL, so a `doh.`
   reachable from the internet would be an open resolver.
 
-Tailnet clients reach it over the advertised `/32`, with split DNS pointed at
-the same address ([Host](host.md#tailscale)). There is no reverse DNS, because
-every service shares the address.
-
-On the host:
+On the host, the third of these confirms that CoreDNS reaches blocky rather
+than staying with the public forwarders. Allow a few minutes after a restart
+for the blocklists to load:
 
 ```bash
 dig @10.43.0.53 example.com +short            # blocky directly
@@ -57,29 +53,22 @@ dig @127.0.0.1 doubleclick.net +short         # 0.0.0.0 once blocklists load
 dig @127.0.0.1 whoami.${DOMAIN} +short        # CNAME to node., then its address
 ```
 
-The third confirms that CoreDNS reaches blocky rather than staying with the
-public forwarders. Allow a few minutes for the blocklists after a restart.
-
 ## Traefik
 
 Traefik ships with k3s and is configured in place with a `HelmChartConfig`
-rather than replaced. The configuration sets a redirect from `web` to
-`websecure`, JSON access logs, and the Authelia middleware on the `websecure`
-entrypoint. It is applied in the `initialization` tier
-([Cluster](cluster.md#tiers)), so the entrypoints exist before anything routes
-to them.
+setting a redirect from `web` to `websecure`, JSON access logs, and the
+Authelia middleware on the `websecure` entrypoint. It is applied in the
+`initialization` tier ([Cluster](cluster.md#tiers)), so the entrypoints exist
+before anything routes to them.
 
-Host ports are not used. Traefik's Service is a ClusterIP carrying
-`EXTERNAL_IP` as its one `externalIP`, so kube-proxy rewrites 80, 443 and 3922
-to it ([Host](host.md#k3s)). cloudflared uses the ClusterIP directly. Nothing
-binds a host port, so the pod stays inside the `restricted` Pod Security
-profile and the Deployment runs two replicas. Traefik performs no ACME of its
-own, so the replicas share no state.
-
-One address serves every subnet, because the Pi routes the others to it
-([Host](host.md#networking)). `externalIPs` are reachable from any interface
-that can route to them, so the pre-DNAT filter limits access rather than they
-do ([Host](host.md#pre-dnat-filter)).
+Traefik's Service is a ClusterIP carrying `EXTERNAL_IP` as its one
+`externalIP`, so kube-proxy rewrites 80, 443 and 3922 to it
+([Host](host.md#k3s)). cloudflared uses the ClusterIP directly. Nothing binds a
+host port, so the pod stays inside the `restricted` profile and the Deployment
+runs two replicas, which share no state because Traefik performs no ACME of its
+own. One address serves every subnet, because the Pi routes the others to it,
+and an `externalIP` is reachable from any interface that can route to it, so
+access is limited by the pre-DNAT filter ([Host](host.md#pre-dnat-filter)).
 
 The dashboard is exposed by the chart's own IngressRoute. `api@internal` is a
 Traefik service rather than a Kubernetes one, so no ordinary Ingress can reach
@@ -92,9 +81,6 @@ cloudflared runs two replicas, both on the single node, so that a rolling
 restart never drops the tunnel. Credentials come from Infisical through an
 ExternalSecret.
 
-- The configuration is generated by `configMapGenerator`, so its content hash
-  rolls the pods. A hand-written ConfigMap does not, and the pods keep serving
-  the old configuration until something restarts them.
 - There is exactly one ingress rule, a catch-all, which cloudflared requires to
   be last. Per-hostname routing is Traefik's job.
 - `originServerName: ${DOMAIN}` rather than `noTLSVerify`. The in-cluster
@@ -109,25 +95,20 @@ issues it over DNS-01, and Traefik serves it as the default certificate.
 Traefik reads `spec.tls[].secretName` from the Ingress's own namespace, so a
 wildcard held in `kube-system` reaches nothing else unless the secret is
 replicated into every namespace. As the default certificate it needs no `tls:`
-block on any Ingress. Only one `TLSStore` may be named `default`, and an
-Ingress carrying its own `tls:` block takes precedence over it. While
-`wildcard-tls` is absent Traefik falls back to a generated self-signed
-certificate, so there is no hard ordering against cert-manager.
+block on any Ingress, though an Ingress carrying one takes precedence. While
+`wildcard-tls` is absent Traefik falls back to a self-signed certificate, so
+there is no hard ordering against cert-manager.
 
 The Certificate lives in `kube-system` alongside Traefik and the TLSStore, but
-is defined under `cert-manager/issuers/` for ordering. That Kustomization waits
-on cert-manager's controller and CRDs; ESO's, needed for the Cloudflare token,
-are already in place from the `initialization` tier. `wait: true` blocks until
-the Certificate is ready, and a first DNS-01 issuance takes minutes, so the 5m
-timeout can lapse before it finishes. That is not fatal: the 1m retry
-reconciles again and the Certificate is usually Ready by then, since
-cert-manager keeps working on the order regardless of Flux.
+is defined under `cert-manager/issuers/` for ordering. A first DNS-01 issuance
+takes minutes, so `wait: true` can lapse the timeout; the retry picks it up,
+since cert-manager keeps working on the order regardless of Flux.
 
 cert-manager self-checks propagation before asking Let's Encrypt to validate.
-By default it resolves through the pod's resolver, which leads to dnsmasq,
-CoreDNS and blocky, where negative caching of `_acme-challenge` makes the
-check stall or flap. `--dns01-recursive-nameservers-only` with public resolvers
-removes the local DNS stack from the issuance path.
+By default it resolves through the pod's resolver, which leads to CoreDNS and
+blocky, where negative caching of `_acme-challenge` makes the check stall or
+flap. `--dns01-recursive-nameservers-only` with public resolvers removes the
+local DNS stack from the issuance path.
 
 Two prerequisites: a Cloudflare API token in Infisical scoped to the one zone
 (**Zone > DNS > Edit** and **Zone > Zone > Read**), and `ACME_EMAIL` in
@@ -170,12 +151,11 @@ The forward-auth endpoint declares `HeaderProxyAuthorization` before
 `CookieSession`, so API and CLI clients authenticate with a header instead of
 being redirected to a login page.
 
-Everything on `websecure` fails closed, including `auth.` itself, because
-Authelia evaluates its bypass rule. With the pod down, each request returns
-5xx. With the Middleware missing, the entrypoint reference cannot resolve and
-every `websecure` router breaks. The second cannot be worked around from an
-Ingress, since the reference sits in Traefik's static configuration. kubectl
-does not traverse Traefik, so port-forward remains available in both cases.
+Everything on `websecure` fails closed, including `auth.` itself: with the pod
+down each request returns 5xx, and with the Middleware missing every
+`websecure` router breaks, which no Ingress can work around because the
+reference sits in Traefik's static configuration. kubectl does not traverse
+Traefik, so port-forward survives both.
 
 ### Users and secrets
 
@@ -206,55 +186,48 @@ SQLite file.
 
 ### OIDC
 
-Authelia provides the OIDC provider; there is no separate component. Its one
-client is the Flux UI, which cannot read the `Remote-*` headers the middleware
-emits.
+Authelia is also the OIDC provider. Its one client is the Flux UI, which cannot
+read the `Remote-*` headers the middleware emits.
 
 The redirect URI is `flux.${DOMAIN}/oauth2/callback`. `offline_access` is in
 the Flux UI's default scope set, so the client has to permit that scope or
 authorization fails with `invalid_scope`. The Flux UI also sends
-`access_type=offline` on the authorization request, set through
-`authURLParams`.
+`access_type=offline`, set through `authURLParams`.
 
 The client needs a claims policy. The Flux UI reads the ID token and never
 calls the userinfo endpoint, so without a policy `claims.groups` is empty,
 impersonation grants nothing, and the failure looks like broken RBAC.
 
-Neither `oidc.yml` nor the users database is stored as a blob. The
+Neither `oidc.yml` nor the users database is stored as a blob; the
 ExternalSecret builds both
 ([Cluster](cluster.md#config-files-built-from-secrets)). Authelia merges
 `--config a,b` and a section may not appear in both files, so
-`configuration.yml` carries no `identity_providers` block.
+`configuration.yml` carries no `identity_providers` block. The Flux UI's
+configuration has the same shape: `web.config` and `web.configSecretName` are
+mutually exclusive and the Secret must hold a complete `config.yaml`, so a
+client secret would otherwise pull the whole configuration out of git.
 
 User hashes arrive through `dataFrom.find` with a `transform` rewrite into
 `user_<name>_hash`. A Go template cannot reference a field that starts with a
 digit, so a username such as `149segolte` would not parse on its own.
 
-The template renders all or nothing, and a missing configuration file is fatal
-to Authelia. The Flux UI's configuration has the same shape: `web.config` and
-`web.configSecretName` are mutually exclusive and the Secret must hold a
-complete `config.yaml`, so a client secret would otherwise pull the entire
-configuration out of git.
-
 ## Glance
 
 Glance serves the dashboard at `mini.`. A `server-stats` widget of `type:
 local` would report the pod, so host metrics come from `glance-agent`, a host
-service in the image ([Host](host.md#contents)).
-
-The agent binds 10.42.0.1, the host's own address on `cni0`, so only pods reach
-it. The URL is a literal, because no downward API field carries that address.
+service in the image ([Host](host.md#contents)). It binds 10.42.0.1, the host's
+own address on `cni0`, so only pods reach it; the URL is a literal, because no
+downward API field carries that address.
 
 `glance.yml` is substituted twice. `${DOMAIN}` and `${LOCATION}` are Flux's.
 Glance performs its own `${...}` pass afterwards, so anything meant for Glance
 is escaped as `$${...}`.
 
 The `releases` widget tracks upstream releases for the components this
-repository deploys, grouped as host, infrastructure and services. A new
-component needs a line there as well. The widget reads `$${GITHUB_TOKEN}` to
-lift GitHub's unauthenticated limit of 60 requests an hour. The variable comes
-from `glance/github-token` in Infisical through an ExternalSecret; a
-fine-grained token with no permissions is enough for public repositories.
+repository deploys, so a new component needs a line there as well. It reads
+`$${GITHUB_TOKEN}`, from `glance/github-token` in Infisical, to lift GitHub's
+unauthenticated limit of 60 requests an hour; a fine-grained token with no
+permissions is enough for public repositories.
 
 ## Copyparty
 
@@ -262,9 +235,9 @@ Copyparty serves `/var/external` at `files.`. SFTP listens on 3922 through a
 Traefik entrypoint of its own, and the tunnel carries HTTP alone, so SFTP
 reaches the LAN and the tailnet only.
 
-The partition is mounted through a static `local` PV. The restricted profile
-rejects a `hostPath` volume in a pod spec and does not inspect claims. Two
-properties of the host mount sit outside version control and have to hold
+The partition is mounted through a static `local` PV, because the restricted
+profile rejects a `hostPath` volume in a pod spec and does not inspect claims.
+Two properties of the host mount sit outside version control and have to hold
 before the pod starts:
 
 - The mount carries `context=system_u:object_r:container_file_t:s0`. An in-tree
@@ -274,10 +247,9 @@ before the pod starts:
   rewrite group ownership across the partition on every mount.
 
 Copyparty takes `Remote-User` and `Remote-Groups` as it receives them. The
-Authelia middleware on `websecure` overwrites both headers on every routed
-request, so the identity holds for traffic through Traefik. No NetworkPolicy
-covers port 3923, and a pod that addresses the Service directly can claim any
-user.
+Authelia middleware overwrites both on every routed request, so the identity
+holds for traffic through Traefik. No NetworkPolicy covers port 3923, and a pod
+that addresses the Service directly can claim any user.
 
 An SFTP user signs in through the browser once before copyparty holds an
 account to match an `sftp-key` against, and copyparty keeps that account after

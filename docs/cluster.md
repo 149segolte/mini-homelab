@@ -1,9 +1,6 @@
 # Cluster
 
-Flux reconciles this repository into the cluster. Removing a manifest removes
-the object it created.
-
-The cluster runs
+Flux reconciles this repository into the cluster, driven by
 [flux-operator](https://github.com/controlplaneio-fluxcd/flux-operator) rather
 than a `flux bootstrap` checkout. `clusters/rpi4/flux-instance.yaml` declares
 the distribution, the components and the sync source. The operator itself is a
@@ -23,51 +20,38 @@ initialization --> infrastructure --> apps
 `initialization` holds what the later tiers build on: Traefik's
 `HelmChartConfig`, which declares the entrypoints Ingresses and IngressRoutes
 attach to, and External Secrets Operator, whose CRDs and `ClusterSecretStore`
-every `ExternalSecret` needs. Because the tier waits on its nested
-Kustomizations, `infrastructure` starts only once the secret store is ready.
+every `ExternalSecret` needs.
 
-Every tier reconciles on a 10m interval and retries after 1m when a run
-fails, so a transient failure costs a minute rather than a full interval. The
-timeout bounds how long `wait: true` holds a run open and grows down the
-chain: 2m for `initialization`, 5m for `infrastructure`, 10m for `apps`.
-Nested Kustomizations and HelmReleases take their tier's timeout. Nested
-Kustomizations keep the 10m / 1m cadence, while HelmReleases, whose chart
-versions change only by commit, reconcile hourly.
+Tiers reconcile every 10m and retry after 1m, so a transient failure costs a
+minute rather than a full interval. Timeouts grow down the chain as each tier
+waits on more.
 
-Admission control is not a tier. It lives in the apiserver and is in force
-before Flux applies anything ([Admission control](#admission-control)).
+Every tier prunes and substitutes variables from the `cluster-vars` ConfigMap.
+Substitution reaches only the manifests a Kustomization renders itself, so a
+nested Kustomization that uses a variable needs its own `postBuild`. It does
+reach generated ConfigMap content, which is how cloudflared and Glance receive
+the domain.
 
-Every tier prunes and substitutes variables from the `cluster-vars`
-ConfigMap. Substitution reaches only the manifests a Kustomization renders
-itself, so a nested Kustomization that uses a variable needs its own
-`postBuild`. It does reach generated ConfigMap content, which is how cloudflared
-and Glance receive the domain.
+A component is a directory of manifests the tier renders directly. One that
+needs internal ordering repeats the pattern a level down, adding its own Flux
+Kustomization and a `sources.yaml`: external-secrets orders
+`crds -> operator -> crs`, cert-manager `controller -> issuers`. Each declares
+its namespace as a manifest rather than relying on `targetNamespace`, which
+keeps labels and deletion declarative.
 
 ### cluster-vars
 
-`cluster-vars` belongs to the cluster rather than to git, because
-`EXTERNAL_IP` is expected to change on a live one. It carries that plus
-`DOMAIN`, `ACME_EMAIL`, `LOCATION` and `TIMEZONE`. `initialization/bootstrap.yaml` holds
+`cluster-vars` belongs to the cluster rather than to git, because `EXTERNAL_IP`
+is expected to change on a live one. It carries that plus `DOMAIN`,
+`ACME_EMAIL`, `LOCATION` and `TIMEZONE`. `initialization/bootstrap.yaml` holds
 the reference copy and is deliberately absent from
 `initialization/kustomization.yaml`, so Flux renders the directory without ever
-adopting the file, and an edit in the cluster survives reconciliation.
+adopting the file and an edit in the cluster survives reconciliation.
 
 `flux-instance.yaml` patches kustomize-controller with
 `--watch-configs-label-selector=owner!=helm`, so editing it reconciles the
 tiers instead of waiting out the interval. The selector skips Helm storage
 Secrets.
-
-A component without internal ordering is a plain directory of manifests that
-the tier renders directly, so it inherits the tier's substitution and health
-checks and needs no Flux Kustomization of its own. authelia, cloudflared and
-flux-operator and blocky are laid out this way.
-
-A component with internal ordering repeats the pattern one level down: a
-directory of manifests, a Flux Kustomization pointing at it, and a
-`sources.yaml` for whatever it pulls from. external-secrets orders
-`crds -> operator -> crs` this way, and cert-manager `controller -> issuers`.
-Each component declares its own namespace as a manifest rather than
-relying on `targetNamespace`, which keeps labels and deletion declarative.
 
 ## Bootstrapping
 
@@ -101,40 +85,34 @@ kubectl create secret generic infisical-universal-auth --namespace external-secr
   --from-literal=clientId=<id> --from-literal=clientSecret=<secret>
 ```
 
-The tiers then settle in order.
-
 ## Secrets
 
 No secret is committed. Host secrets are overlaid at install time
 ([Host](host.md#install-time-overlay)). Cluster secrets come from Infisical
 through External Secrets Operator, which installs in three ordered steps:
 
-| Step       | Source                        | Notes                                                    |
-| ---------- | ----------------------------- | -------------------------------------------------------- |
+| Step       | Source                        | Notes                                                   |
+| ---------- | ----------------------------- | ------------------------------------------------------- |
 | `crds`     | Upstream git at tag `v2.11.0` | CRDs only; `ignore` rules fetch just `config/crds/bases` |
-| `operator` | Helm chart `2.11.0`           | `installCRDs: false`                                     |
-| `crs`      | This repository               | The `ClusterSecretStore`                                 |
+| `operator` | Helm chart `2.11.0`           | `installCRDs: false`                                    |
+| `crs`      | This repository               | The `ClusterSecretStore`                                |
 
 Taking the CRDs from git with `wait: true` means the operator never starts
 against a half-established API. The chart version and the CRD tag are pinned to
-the same release and have to be bumped together.
-
-`installCRDs` is the chart's real toggle. `crds.create: false` looks plausible,
-is not rejected, and silently installs a second copy of the CRDs.
+the same release and have to be bumped together. `installCRDs` is the chart's
+real toggle; `crds.create: false` looks plausible, is not rejected, and
+silently installs a second copy.
 
 One `ClusterSecretStore` named `infisical` uses universal auth against the
-project's `prod` environment. Workloads declare an `ExternalSecret` in their own
-namespace with `creationPolicy: Owner`, so removing the manifest removes the
-Secret. A rotation reaches the cluster within `refreshInterval`, but the
-consuming pod still has to restart to pick it up.
+project's `prod` environment. A rotation reaches the cluster within
+`refreshInterval`, but the consuming pod still has to restart to pick it up.
 
 ### Config files built from secrets
 
 When a component needs a configuration _file_ that contains a secret, the
-ExternalSecret builds the file. `spec.target.template` with `engineVersion: v2`
-keeps the structure in git and interpolates one single-line Infisical value per
+ExternalSecret builds it. `spec.target.template` with `engineVersion: v2` keeps
+the structure in git and interpolates one single-line Infisical value per
 secret. Authelia and the Flux UI both use this ([Services](services.md#oidc)).
-
 Three constraints apply:
 
 - Sprig is available, so a multi-line value such as a PEM goes into a block
@@ -160,16 +138,13 @@ share the file:
 
 Neither involves a webhook or the network, so neither can fail closed during an
 outage, and no Flux tier has to come up before the workloads it governs. The
-default is set at the apiserver rather than through namespace labels, because
-it has to apply to namespaces nobody has labelled. No namespace carries PSA
-labels of its own.
+default is set at the apiserver rather than through namespace labels because it
+has to cover namespaces nobody has labelled.
 
-### Mutation
-
-`pod-security-defaults.static.k8s.io` is a static policy, loaded from
-`/etc/rancher/k3s/admission/mutating-policies/` rather than from the API. It
-ships with the image, so it changes by image upgrade, not by Flux. On pod
-`CREATE` outside `kube-system` it adds only what is missing:
+`pod-security-defaults.static.k8s.io` is loaded from
+`/etc/rancher/k3s/admission/mutating-policies/` rather than from the API, so it
+changes by image upgrade, not by Flux. On pod `CREATE` outside `kube-system` it
+adds only what is missing:
 
 - `seccompProfile: RuntimeDefault` at pod level, which covers every container.
 - `allowPrivilegeEscalation: false` on each container and init container.
@@ -177,7 +152,5 @@ ships with the image, so it changes by image upgrade, not by Flux. On pod
   all. The list is atomic, so a container that sets `capabilities` of its own
   is left alone and has to drop `ALL` itself.
 
-Mutating admission runs before validating admission, so a workload that merely
-omits the boilerplate is corrected rather than rejected. `runAsNonRoot` is not
-defaulted; a workload has to declare it, which keeps the choice of a non-root
-image with the workload.
+`runAsNonRoot` is not defaulted; a workload has to declare it, which keeps the
+choice of a non-root image with the workload.
