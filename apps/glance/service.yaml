@@ -10,3 +10,16 @@ spec:
     - name: http
       port: 8080
       targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glance-k8s
+  namespace: glance
+spec:
+  selector:
+    app: glance-k8s
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

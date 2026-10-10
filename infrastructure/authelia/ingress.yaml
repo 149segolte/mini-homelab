@@ -3,6 +3,10 @@ kind: Ingress
 metadata:
   name: authelia
   namespace: authelia
+  annotations:
+    glance/name: Authelia
+    glance/icon: di:authelia
+    glance/url: https://auth.${DOMAIN}
 spec:
   ingressClassName: traefik
   rules:

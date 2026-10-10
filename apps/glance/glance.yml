@@ -17,16 +17,15 @@ pages:
             autofocus: true
             search-engine: google
 
-          - type: monitor
+          - type: extension
             cache: 1m
             title: Services
-            sites:
-              - title: Flux Operator
-                url: https://flux.${DOMAIN}
-                check-url: http://flux-operator.flux-system.svc.cluster.local:9080
-              - title: Authelia Gateway
-                url: https://auth.${DOMAIN}
-                check-url: http://authelia.authelia.svc.cluster.local:9091/api/health
+            url: http://glance-k8s.glance.svc.cluster.local:8080/extension/apps
+            allow-potentially-dangerous-html: true
+            parameters:
+              # Opt-in: a workload shows once it, or its Ingress, sets a name.
+              show-if: |
+                "glance/name" in annotations
 
           - type: split-column
             max-columns: 2
@@ -59,6 +58,7 @@ pages:
                   # Services
                   - traefik/whoami
                   - glanceapp/glance
+                  - lukasdietrich/glance-k8s
                   - 9001/copyparty
 
       - size: small
