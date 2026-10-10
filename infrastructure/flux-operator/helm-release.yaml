@@ -30,6 +30,10 @@ spec:
       ingress:
         enabled: true
         className: traefik
+        annotations:
+          glance/name: Flux Operator
+          glance/icon: di:flux-operator
+          glance/url: https://flux.${DOMAIN}
         hosts:
           - host: flux.${DOMAIN}
             paths:

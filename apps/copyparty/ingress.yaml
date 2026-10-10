@@ -3,6 +3,10 @@ kind: Ingress
 metadata:
   name: copyparty
   namespace: copyparty
+  annotations:
+    glance/name: Copyparty
+    glance/icon: di:copyparty
+    glance/url: https://files.${DOMAIN}
 spec:
   ingressClassName: traefik
   rules:
