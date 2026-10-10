@@ -6,6 +6,7 @@ resources:
   - service.yaml
   - ingress.yaml
   - external-secret.yaml
+  - rbac.yaml
 
 # Generated rather than hand-written, so the content hash rolls the pod when
 # the dashboard changes.
