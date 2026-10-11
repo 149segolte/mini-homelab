@@ -4,7 +4,7 @@ ports:
 statistics:
   enable: true
 dnssec:
-  validate: true
+  validate: false # Disabled due to bad implementation. Rely on upstream validation.
 
 upstreams:
   strategy: strict
