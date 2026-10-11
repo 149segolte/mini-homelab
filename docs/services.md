@@ -217,7 +217,9 @@ Glance serves the dashboard at `mini.`. A `server-stats` widget of `type:
 local` would report the pod, so host metrics come from `glance-agent`, a host
 service in the image ([Host](host.md#contents)). It binds 10.42.0.1, the host's
 own address on `cni0`, so only pods reach it; the URL is a literal, because no
-downward API field carries that address.
+downward API field carries that address. The address exists only once flannel
+has networked the first pod, so the unit waits for it in `ExecStartPre` rather
+than restarting into its start limit.
 
 `glance.yml` is substituted twice. `${DOMAIN}` and `${LOCATION}` are Flux's.
 Glance performs its own `${...}` pass afterwards, so anything meant for Glance
