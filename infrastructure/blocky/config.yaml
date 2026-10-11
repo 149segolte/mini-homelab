@@ -10,8 +10,8 @@ upstreams:
   strategy: strict
   groups:
     default:
-      # Cloudflare Family - No Logs, Filtering
-      - sdns://AgMAAAAAAAAABzEuMC4wLjMABzEuMC4wLjMKL2Rucy1xdWVyeQ
+      # Cloudflare - No Logs, No Filtering
+      - sdns://AgcAAAAAAAAADDE2Mi4xNTkuNDYuMQAMMTYyLjE1OS40Ni4xCi9kbnMtcXVlcnk
       # Google - Logs, No Filtering
       - sdns://AgUAAAAAAAAABzguOC44LjggalBisNF41VbxY7E7Gw8ZQ10CWIKRzHVYnf7m6xHI1cMHOC44LjguOAovZG5zLXF1ZXJ5
 
