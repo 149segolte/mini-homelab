@@ -73,13 +73,29 @@ spec:
           ports:
             - name: sftp
               containerPort: 2222
+          # sshd logs every connection, so check listening socket (2222 is
+          # 08AE, LISTEN is 0A) instead of connecting.
           readinessProbe:
-            tcpSocket:
-              port: sftp
+            exec:
+              command:
+                [
+                  "grep",
+                  "-qs",
+                  ":08AE .* 0A",
+                  "/proc/net/tcp",
+                  "/proc/net/tcp6",
+                ]
             initialDelaySeconds: 5
           livenessProbe:
-            tcpSocket:
-              port: sftp
+            exec:
+              command:
+                [
+                  "grep",
+                  "-qs",
+                  ":08AE .* 0A",
+                  "/proc/net/tcp",
+                  "/proc/net/tcp6",
+                ]
             initialDelaySeconds: 30
             periodSeconds: 30
           volumeMounts:
