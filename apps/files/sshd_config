@@ -1,0 +1,16 @@
+Port 2222
+HostKey /etc/ssh/keys/ssh_host_ed25519_key
+PidFile none
+PerSourcePenalties no
+
+# sshd runs as UID 1000, so it can log in that account and no other, without
+# privilege separation or a chroot.
+AllowUsers files
+AuthorizedKeysFile /etc/ssh/authorized_keys
+AuthenticationMethods publickey
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+
+DisableForwarding yes
+Subsystem sftp internal-sftp
+ForceCommand internal-sftp -d /files

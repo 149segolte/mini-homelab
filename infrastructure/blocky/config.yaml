@@ -41,3 +41,4 @@ customDNS:
     whoami                300       IN  CNAME         node
     mini                  300       IN  CNAME         node
     files                 300       IN  CNAME         node
+    dav                   300       IN  CNAME         node

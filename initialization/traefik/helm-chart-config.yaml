@@ -52,7 +52,8 @@ spec:
         http:
           middlewares:
             - authelia-authelia@kubernetescrd
-      # Raw TCP for copyparty's SFTP. Authelia middleware doesn't apply to this.
+      # Raw TCP for SFTP in the files namespace. Authelia middleware doesn't
+      # apply to this.
       sftp:
         port: 3922
         exposedPort: 3922

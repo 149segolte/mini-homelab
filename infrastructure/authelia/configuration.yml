@@ -51,10 +51,11 @@ access_control:
       policy: bypass
       resources:
         - "^/dns-query([/?].*)?$"
+    # WebDAV clients cannot do auth either; HFS asks for its own password.
+    - domain: dav.${DOMAIN}
+      policy: bypass
     # One-factor auth for automated clients.
     - domain: whoami.${DOMAIN}
-      policy: one_factor
-    - domain: files.${DOMAIN}
       policy: one_factor
     # Two-factor authentication for all other domains.
     - domain: "*.${DOMAIN}"

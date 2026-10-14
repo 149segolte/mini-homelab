@@ -59,7 +59,8 @@ pages:
                   - traefik/whoami
                   - glanceapp/glance
                   - lukasdietrich/glance-k8s
-                  - 9001/copyparty
+                  - rejetto/hfs
+                  - linuxserver/docker-openssh-server
 
       - size: small
         widgets:

@@ -1,0 +1,25 @@
+port: 8080
+proxies: 1
+open_browser_at_start: false
+localhost_admin: false
+show_hidden_files: true
+
+# Any logged-in account; nothing for anonymous requests.
+vfs:
+  source: /files
+  can_read: "*"
+  can_upload: "*"
+  can_delete: "*"
+
+# In Megabytes. Browser uploads go in chunks of this size, resumable, below
+# Cloudflare's 100 MB request cap.
+split_uploads: 50
+
+enable_plugins:
+  - proxy-header-auth
+
+plugins_config:
+  proxy-header-auth:
+    userHeader: Remote-User
+    trustedProxies: 10.42.0.0/16
+    autoCreateAccounts: false

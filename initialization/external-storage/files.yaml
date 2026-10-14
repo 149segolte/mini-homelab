@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: external-root
+spec:
+  # Nominal. Nothing enforces capacity; the figure only has to cover the
+  # claim's request for the two to bind.
+  capacity:
+    storage: 800Gi
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: external
+  # The whole partition, for the file server.
+  hostPath:
+    path: /var/external
+    type: Directory

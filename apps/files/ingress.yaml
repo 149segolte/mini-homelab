@@ -1,11 +1,11 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: copyparty
-  namespace: copyparty
+  name: files
+  namespace: files
   annotations:
-    glance/name: Copyparty
-    glance/icon: di:copyparty
+    glance/name: Files
+    glance/icon: di:files
     glance/url: https://files.${DOMAIN}
 spec:
   ingressClassName: traefik
@@ -17,6 +17,16 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: copyparty
+                name: files
+                port:
+                  name: http
+    - host: dav.${DOMAIN}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: files
                 port:
                   name: http

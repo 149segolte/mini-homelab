@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: files
+  namespace: files
+spec:
+  replicas: 1
+  # One pod at a time on the partition, so a rollout never has two servers
+  # writing the same files.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: files
+  template:
+    metadata:
+      labels:
+        app: files
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      initContainers:
+        # The plugin has no release, so it is fetched at a pinned commit into
+        # HFS's working directory.
+        - name: hfs-plugin
+          image: docker.io/curlimages/curl:8.23.0
+          args:
+            - -fsSL
+            - --create-dirs
+            - -o
+            - /data/plugins/proxy-header-auth/plugin.js
+            - https://raw.githubusercontent.com/rejetto/hfs-proxy-header-auth/9bc100705520fb871f051d7a60f4b636f815189b/dist/plugin.js
+          volumeMounts:
+            - name: hfs
+              mountPath: /data
+      containers:
+        - name: hfs
+          image: docker.io/rejetto/hfs:v3.3.4
+          env:
+            - name: HFS_ACCOUNTS
+              valueFrom:
+                secretKeyRef:
+                  name: files
+                  key: accounts
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            # The image's working directory. Sessions, logs and the plugin
+            # are disposable.
+            - name: hfs
+              mountPath: /data
+            - name: config
+              mountPath: /data/config.yaml
+              subPath: config.yaml
+            - name: external
+              mountPath: /files
+        # linuxserver's image, without its root init: sshd alone, as 1000.
+        - name: sftp
+          image: docker.io/linuxserver/openssh-server:10.3_p1-r1-ls239
+          command: ["/usr/sbin/sshd.pam", "-D", "-e"]
+          ports:
+            - name: sftp
+              containerPort: 2222
+          readinessProbe:
+            tcpSocket:
+              port: sftp
+            initialDelaySeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: sftp
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: config
+              mountPath: /etc/ssh/sshd_config
+              subPath: sshd_config
+            - name: config
+              mountPath: /etc/passwd
+              subPath: passwd
+            - name: config
+              mountPath: /etc/ssh/authorized_keys
+              subPath: authorized_keys
+            - name: host-key
+              mountPath: /etc/ssh/keys
+              readOnly: true
+            - name: external
+              mountPath: /files
+      volumes:
+        - name: hfs
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: files
+        - name: host-key
+          secret:
+            secretName: files
+            items:
+              - key: ssh_host_ed25519_key
+                path: ssh_host_ed25519_key
+        - name: external
+          persistentVolumeClaim:
+            claimName: external-root
