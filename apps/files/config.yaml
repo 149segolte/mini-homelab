@@ -15,6 +15,10 @@ vfs:
 # Cloudflare's 100 MB request cap.
 split_uploads: 50
 
+# Comments "attr" keeps them in the working directory, so they are dropped
+# when the server restarts.
+comments_storage: attr
+
 enable_plugins:
   - proxy-header-auth
 

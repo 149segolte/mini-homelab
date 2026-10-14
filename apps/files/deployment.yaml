@@ -22,6 +22,16 @@ spec:
         runAsUser: 1000
         runAsGroup: 1000
       initContainers:
+        # HFS needs a writable copy of the config, so it gets one from the
+        # ConfigMap before the server starts.
+        - name: hfs-config
+          image: docker.io/curlimages/curl:8.23.0
+          command: ["cp", "/config/config.yaml", "/data/config.yaml"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: hfs
+              mountPath: /data
         # The plugin has no release, so it is fetched at a pinned commit into
         # HFS's working directory.
         - name: hfs-plugin
@@ -57,13 +67,10 @@ spec:
             initialDelaySeconds: 30
             periodSeconds: 30
           volumeMounts:
-            # The image's working directory. Sessions, logs and the plugin
-            # are disposable.
+            # The image's working directory. Sessions, logs, the plugin and
+            # the config copy are disposable.
             - name: hfs
               mountPath: /data
-            - name: config
-              mountPath: /data/config.yaml
-              subPath: config.yaml
             - name: external
               mountPath: /files
         # linuxserver's image, without its root init: sshd alone, as 1000.
