@@ -1,86 +1,60 @@
 # Cluster
 
-Flux reconciles this repository into the cluster, driven by
-[flux-operator](https://github.com/controlplaneio-fluxcd/flux-operator) rather
-than a `flux bootstrap` checkout. `clusters/rpi4/flux-instance.yaml` declares
-the distribution, the components and the sync source. The operator itself is a
-`HelmRelease` under `infrastructure/flux-operator/`, so Flux upgrades Flux. The
-image automation controllers are not installed, so image tags are pinned in git
-and changed by commit.
+Flux reconciles this repository, installed by
+[flux-operator](https://github.com/controlplaneio-fluxcd/flux-operator) from
+`clusters/rpi4/flux-instance.yaml`. The operator is itself a `HelmRelease`, so
+Flux upgrades Flux. Image tags are pinned in git and change by commit.
 
 ## Tiers
 
-`clusters/rpi4/` holds one Kustomization per tier, chained with `dependsOn` and
-`wait: true`:
+`clusters/rpi4/` chains three Kustomizations with `dependsOn` and `wait: true`:
 
 ```
 initialization --> infrastructure --> apps
 ```
 
-`initialization` holds what the later tiers build on: Traefik's
-`HelmChartConfig`, which declares the entrypoints Ingresses and IngressRoutes
-attach to, External Secrets Operator, whose CRDs and `ClusterSecretStore`
-every `ExternalSecret` needs, and the volumes on the external partition
-([Storage](#storage)).
+`initialization` holds what the others build on: Traefik's entrypoints, External
+Secrets Operator and the external-partition volumes. A component that needs its
+own ordering nests a Flux Kustomization per step, as external-secrets
+(`crds -> operator -> crs`) and cert-manager (`controller -> issuers`) do.
 
-Tiers reconcile every 10m and retry after 1m, so a transient failure costs a
-minute rather than a full interval. Timeouts grow down the chain as each tier
-waits on more.
+### Variables
 
-Every tier prunes and substitutes variables from the `cluster-vars` ConfigMap.
-Substitution reaches only the manifests a Kustomization renders itself, so a
-nested Kustomization that uses a variable needs its own `postBuild`. It does
-reach generated ConfigMap content, which is how cloudflared and Glance receive
-the domain.
+Every tier substitutes `${...}` from the `cluster-vars` ConfigMap: `DOMAIN`,
+`EXTERNAL_IP`, `ACME_EMAIL`, `LOCATION` and `TIMEZONE`. An unset variable
+becomes an empty string. Substitution covers generated ConfigMap content, but
+not manifests rendered by a nested Kustomization, which needs its own
+`postBuild`. A resource annotated `kustomize.toolkit.fluxcd.io/substitute:
+disabled` is skipped.
 
-A component is a directory of manifests the tier renders directly. One that
-needs internal ordering repeats the pattern a level down, adding its own Flux
-Kustomization and a `sources.yaml`: external-secrets orders
-`crds -> operator -> crs`, cert-manager `controller -> issuers`. Each declares
-its namespace as a manifest rather than relying on `targetNamespace`, which
-keeps labels and deletion declarative.
-
-### cluster-vars
-
-`cluster-vars` belongs to the cluster rather than to git, because `EXTERNAL_IP`
-is expected to change on a live one. It carries that plus `DOMAIN`,
-`ACME_EMAIL`, `LOCATION` and `TIMEZONE`. `initialization/bootstrap.yaml` holds
-the reference copy and is deliberately absent from
-`initialization/kustomization.yaml`, so Flux renders the directory without ever
-adopting the file and an edit in the cluster survives reconciliation.
-
-`flux-instance.yaml` patches kustomize-controller with
-`--watch-configs-label-selector=owner!=helm`, so editing it reconciles the
-tiers instead of waiting out the interval. The selector skips Helm storage
-Secrets.
+`cluster-vars` lives in the cluster, not in git, because `EXTERNAL_IP` may
+change. `initialization/bootstrap.yaml` is the reference copy and is left out
+of the kustomization so Flux never adopts it. kustomize-controller watches it,
+so an edit reconciles immediately.
 
 ## Bootstrapping
 
-These steps run once, on a fresh install. k3s is enabled in the image, so the
-node is already up on first boot.
+Once, on a fresh install:
 
 ```bash
-# kubeconfig. k3s writes it root-only; the apiserver answers on the admin AP
+# kubeconfig
 ssh <admin>@172.19.149.1 sudo cat /etc/rancher/k3s/k3s.yaml \
   | sed 's#127.0.0.1#172.19.149.1#' > ~/.kube/mini-homelab
 export KUBECONFIG=~/.kube/mini-homelab
 
-# flux-operator by hand: the FluxInstance CRD must exist before the manifest
-# using it. Flux adopts the release, as name and namespace match
+# the FluxInstance CRD; Flux adopts the release later
 helm install flux-operator oci://ghcr.io/controlplaneio-fluxcd/charts/flux-operator \
   --namespace flux-system --create-namespace --version 0.61.x
 
-# pull secret. flux-instance.yaml sets provider: github, so App credentials
+# GitHub App credentials for the sync
 flux create secret githubapp flux-system \
   --app-id=<id> --app-installation-id=<id> --app-private-key=<key>.pem
 
-# cluster-vars, before handover, or every tier fails variable substitution
+# before handover, or substitution fails in every tier
 kubectl apply -f initialization/bootstrap.yaml
-
-# hand over. Flux then reconciles clusters/rpi4, including flux-instance.yaml
 kubectl apply -f clusters/rpi4/flux-instance.yaml
 
-# Infisical credentials, or no ExternalSecret ever becomes ready
+# Infisical credentials, or no ExternalSecret becomes ready
 kubectl create namespace external-secrets
 kubectl create secret generic infisical-universal-auth --namespace external-secrets \
   --from-literal=clientId=<id> --from-literal=clientSecret=<secret>
@@ -88,85 +62,47 @@ kubectl create secret generic infisical-universal-auth --namespace external-secr
 
 ## Secrets
 
-No secret is committed. Host secrets are overlaid at install time
-([Host](host.md#install-time-overlay)). Cluster secrets come from Infisical
-through External Secrets Operator, which installs in three ordered steps:
+No secret is committed. Cluster secrets come from Infisical's `prod`
+environment through the `infisical` ClusterSecretStore. A consuming pod restarts
+to pick up a rotation, except where noted.
 
-| Step       | Source                        | Notes                                                   |
-| ---------- | ----------------------------- | ------------------------------------------------------- |
-| `crds`     | Upstream git at tag `v2.11.0` | CRDs only; `ignore` rules fetch just `config/crds/bases` |
-| `operator` | Helm chart `2.11.0`           | `installCRDs: false`                                    |
-| `crs`      | This repository               | The `ClusterSecretStore`                                |
+The ESO CRDs come from upstream git and the operator from its chart, so the
+operator never starts against missing CRDs. Bump the git tag and chart version
+together. The chart's toggle is `installCRDs: false`; `crds.create: false` is
+accepted and silently installs a second copy.
 
-Taking the CRDs from git with `wait: true` means the operator never starts
-against a half-established API. The chart version and the CRD tag are pinned to
-the same release and have to be bumped together. `installCRDs` is the chart's
-real toggle; `crds.create: false` looks plausible, is not rejected, and
-silently installs a second copy.
+Config files that contain secrets are built by the ExternalSecret's
+`target.template` (`engineVersion: v2`):
 
-One `ClusterSecretStore` named `infisical` uses universal auth against the
-project's `prod` environment. A rotation reaches the cluster within
-`refreshInterval`, but the consuming pod still has to restart to pick it up.
-
-### Config files built from secrets
-
-When a component needs a configuration _file_ that contains a secret, the
-ExternalSecret builds it. `spec.target.template` with `engineVersion: v2` keeps
-the structure in git and interpolates one Infisical value per secret. Authelia
-and the Flux UI both use this ([Services](services.md#oidc)). Three constraints
-apply:
-
-- Sprig is available, so a multi-line value such as a PEM goes into a block
-  scalar with `nindent`. A quoted scalar folds the newlines into spaces, which
-  parses cleanly and produces an unusable key.
-- `template.data` replaces the Secret's data entirely, so pure passthrough keys
-  have to be listed as well. A single bad reference drops every key.
-- Flux runs envsubst over these manifests before ESO sees them, so `${...}`
-  belongs to Flux and `{{ ... }}` to ESO. A `regexp` rewrite target needs
-  `${1}`, which Flux then fails on as an unset variable. A `transform` rewrite
-  contains no `$` and avoids the collision.
+- Indent multi-line values such as a PEM with `nindent` into a block scalar. A
+  quoted scalar folds the newlines and yields an unusable key.
+- `template.data` replaces the Secret's data, so passthrough keys are listed
+  too, and one bad reference drops every key.
+- `${...}` belongs to Flux and `{{ ... }}` to ESO. A `regexp` rewrite target
+  such as `${1}` fails Flux substitution; use a `transform` rewrite instead.
 
 ## Admission control
 
-Pod security is enforced entirely inside the apiserver, through
-`admission-control-config-file` ([Host](host.md#k3s)). Two in-tree plugins
-share the file:
+Pod security lives in the apiserver's admission configuration, shipped in the
+image, so it involves no webhook and cannot fail closed.
 
-| Plugin                    | Role                                        |
-| ------------------------- | ------------------------------------------- |
-| `MutatingAdmissionPolicy` | Fills in the `restricted` boilerplate       |
-| `PodSecurity`             | Enforces `restricted`, `kube-system` exempt |
+- `PodSecurity` enforces `restricted` on every namespace except `kube-system`,
+  including unlabelled ones.
+- A static `MutatingAdmissionPolicy` fills in what is missing on pod creation:
+  `seccompProfile: RuntimeDefault`, `allowPrivilegeEscalation: false`, and
+  `capabilities.drop: [ALL]`. A container that sets any `capabilities` of its
+  own is left alone and has to drop `ALL` itself.
 
-Neither involves a webhook or the network, so neither can fail closed during an
-outage, and no Flux tier has to come up before the workloads it governs. The
-default is set at the apiserver rather than through namespace labels because it
-has to cover namespaces nobody has labelled.
-
-`pod-security-defaults.static.k8s.io` is loaded from
-`/etc/rancher/k3s/admission/mutating-policies/` rather than from the API, so it
-changes by image upgrade, not by Flux. On pod `CREATE` outside `kube-system` it
-adds only what is missing:
-
-- `seccompProfile: RuntimeDefault` at pod level, which covers every container.
-- `allowPrivilegeEscalation: false` on each container and init container.
-- `capabilities.drop: [ALL]` where a container declares no `capabilities` at
-  all. The list is atomic, so a container that sets `capabilities` of its own
-  is left alone and has to drop `ALL` itself.
-
-`runAsNonRoot` is not defaulted; a workload has to declare it, which keeps the
-choice of a non-root image with the workload.
+`runAsNonRoot` is not defaulted. Each workload declares it, along with
+`runAsUser` when the image has no `USER`.
 
 ## Storage
 
-`local-path`, k3s's bundled provisioner, is the default StorageClass and holds
-application state. `external` is the partition at `/var/external`, with no
-provisioner: `initialization/external-storage/<app>.yaml` declares a PV for each
-folder an app uses, and the app's claim names it in `volumeName`. Apps share
-data, with the file server ([Services](services.md#files)) or each other,
-through these PVs rather than host mounts.
+`local-path` is the default StorageClass and holds application state. It does
+not enforce the requested size.
 
-- A PV binds one claim, so two apps sharing a folder each get a PV with the same
-  path.
-- A missing folder fails the pod rather than being created as root. Create it
-  first, as UID 1000.
-- PVs are retained, so deleting a claim keeps the data.
+`external` is the partition at `/var/external`, without a provisioner.
+`initialization/external-storage/<app>.yaml` declares a retained PV per folder,
+and the app's claim names it in `volumeName`. A PV binds one claim, so two apps
+sharing a folder need a PV each. A missing folder fails the pod; create it
+first, owned by UID 1000.
