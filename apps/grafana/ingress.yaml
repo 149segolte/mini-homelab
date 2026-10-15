@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: grafana
+  annotations:
+    glance/name: Grafana
+    glance/icon: di:grafana
+    glance/url: https://grafana.${DOMAIN}
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: grafana.${DOMAIN}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  name: http

@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: victoria-metrics
+  namespace: victoria-metrics
+spec:
+  replicas: 1
+  # RWO volume: the new pod cannot mount until the old one releases it.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: victoria-metrics
+  template:
+    metadata:
+      labels:
+        app: victoria-metrics
+    spec:
+      serviceAccountName: victoria-metrics
+      securityContext:
+        runAsNonRoot: true
+        # The image has no USER; without this it is root.
+        runAsUser: 65534
+      containers:
+        - name: victoria-metrics
+          image: docker.io/victoriametrics/victoria-metrics:v1.154.0
+          args:
+            - -storageDataPath=/storage
+            - -retentionPeriod=90d
+            - -promscrape.config=/config/scrape.yaml
+            # - -streamAggr.config=/config/aggregation.yaml
+            - -promscrape.maxScrapeSize=32MiB
+            # Temporary until pod limits are enabled (evaluating)
+            - -memory.allowedBytes=128MiB
+            # Stops ingestion rather than filling the /var it shares with k3s.
+            - -storage.minFreeDiskSpaceBytes=1GiB
+          ports:
+            - name: http
+              containerPort: 8428
+          resources:
+            requests:
+              cpu: 10m
+              memory: 64Mi
+            # limits:
+            #   memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: storage
+              mountPath: /storage
+      volumes:
+        - name: config
+          configMap:
+            name: victoria-metrics
+        - name: storage
+          persistentVolumeClaim:
+            claimName: victoria-metrics

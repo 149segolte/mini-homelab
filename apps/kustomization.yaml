@@ -3,4 +3,6 @@ kind: Kustomization
 resources:
   - files
   - glance
+  - grafana
+  - victoria-metrics
   - whoami

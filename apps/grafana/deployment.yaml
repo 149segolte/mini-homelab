@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: grafana
+          image: docker.io/grafana/grafana:13.2.4
+          env:
+            - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: grafana
+                  key: client_id
+            - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: grafana
+                  key: client_secret
+          ports:
+            - name: http
+              containerPort: 3000
+          resources:
+            requests:
+              cpu: 10m
+              memory: 128Mi
+            # limits:
+            #   memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 15
+          # A fresh database migrates on every start, which is slow on the Pi.
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 120
+            periodSeconds: 30
+          volumeMounts:
+            - name: config
+              mountPath: /etc/grafana
+              readOnly: true
+            - name: data
+              mountPath: /var/lib/grafana
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: grafana
+            items:
+              - key: grafana.ini
+                path: grafana.ini
+              - key: datasources.yaml
+                path: provisioning/datasources/datasources.yaml
+              - key: dashboards.yaml
+                path: provisioning/dashboards/dashboards.yaml
+        - name: data
+          emptyDir: {}
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards

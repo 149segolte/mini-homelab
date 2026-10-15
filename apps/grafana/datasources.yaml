@@ -1,0 +1,12 @@
+apiVersion: 1
+datasources:
+  - name: VictoriaMetrics
+    uid: victoria-metrics
+    type: prometheus
+    access: proxy
+    url: http://victoria-metrics.victoria-metrics.svc.cluster.local:8428
+    isDefault: true
+    editable: false
+    jsonData:
+      # The aggregated series' resolution, which sets $__rate_interval's floor.
+      timeInterval: 1m

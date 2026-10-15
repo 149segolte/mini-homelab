@@ -1,0 +1,26 @@
+# Each rule replaces the matched series with a per-minute sum without the listed
+# labels, stored under the original name. total_prometheus skips each series'
+# first sample, so a restart does not record k3s's whole uptime as one spike.
+# - match: 'apiserver_request_total{job="k3s"}'
+#   interval: 1m
+#   without: [group, version, subresource, scope, component, dry_run]
+#   outputs: [total_prometheus]
+#   keep_metric_names: true
+#
+# - match: 'apiserver_request_duration_seconds_bucket{job="k3s"}'
+#   interval: 1m
+#   without: [group, version, resource, subresource, component, dry_run]
+#   outputs: [total_prometheus]
+#   keep_metric_names: true
+#
+# - match: 'etcd_request_duration_seconds_bucket{job="k3s"}'
+#   interval: 1m
+#   without: [type, group, resource]
+#   outputs: [total_prometheus]
+#   keep_metric_names: true
+#
+# - match: 'apiserver_admission_webhook_admission_duration_seconds_bucket{job="k3s"}'
+#   interval: 1m
+#   without: [operation, rejected]
+#   outputs: [total_prometheus]
+#   keep_metric_names: true

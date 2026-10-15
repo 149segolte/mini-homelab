@@ -61,6 +61,8 @@ pages:
                   - lukasdietrich/glance-k8s
                   - rejetto/hfs
                   - linuxserver/docker-openssh-server
+                  - VictoriaMetrics/VictoriaMetrics
+                  - grafana/grafana
 
       - size: small
         widgets:

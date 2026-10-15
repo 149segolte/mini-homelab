@@ -1,0 +1,36 @@
+global:
+  scrape_interval: 30s
+
+scrape_configs:
+  # k3s serves every in-process component's metrics from the apiserver.
+  - job_name: k3s
+    scheme: https
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    static_configs:
+      - targets: ["kubernetes.default.svc:443"]
+    # gzip costs the apiserver more CPU than it saves here.
+    disable_compression: true
+    metric_relabel_configs:
+      # Long-running requests measure how long the client held on.
+      - action: drop
+        if: 'apiserver_request_duration_seconds_bucket{verb=~"WATCH|CONNECT"}'
+      # - action: keep_metrics
+      #   regex:
+      #     - process_(cpu_seconds_total|resident_memory_bytes|open_fds|start_time_seconds)
+      #     - go_(goroutines|threads|memstats_heap_inuse_bytes|memstats_next_gc_bytes)
+      #     - apiserver_request_total
+      #     - apiserver_request_duration_seconds_bucket
+      #     - apiserver_admission_webhook_admission_duration_seconds_bucket
+      #     - apiserver_current_inflight_requests
+      #     - apiserver_flowcontrol_(current_inqueue_requests|current_executing_seats|nominal_limit_seats|rejected_requests_total)
+      #     - apiserver_longrunning_requests
+      #     - etcd_request_duration_seconds_bucket
+      #     - apiserver_(storage|resource)_objects
+      #     - apiserver_storage_size_bytes
+      #     - workqueue_(depth|adds_total|retries_total)
+      #     - rest_client_requests_total
+      #     - scheduler_(pending_pods|schedule_attempts_total)
+      #     - kubelet_running_(pods|containers)
+      #     - kubelet_pleg_relist_duration_seconds_bucket
