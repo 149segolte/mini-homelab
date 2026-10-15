@@ -11,15 +11,16 @@ Hostnames are built from `${DOMAIN}` in `cluster-vars`. Public records live in
 Cloudflare, outside this repository. Internal records are served by blocky from
 a zone held in git.
 
-| Host           | Service                                           |
-| -------------- | ------------------------------------------------- |
-| `mini.`        | Glance dashboard                                  |
-| `files.`       | Copyparty, `one_factor` so that sync clients work |
-| `whoami.`      | Smoke test, `one_factor` so that it stays usable  |
-| `auth.`        | Authelia                                          |
-| `flux.`        | Flux UI, authenticating over OIDC                 |
-| `traefik.`     | Traefik dashboard                                 |
-| `dns.`, `doh.` | blocky's API and DoH, with no public record       |
+| Host           | Service                                          |
+| -------------- | ------------------------------------------------ |
+| `mini.`        | Glance dashboard                                 |
+| `files.`       | HFS, the file server, with SFTP on 3922          |
+| `dav.`         | HFS's WebDAV, with no public record              |
+| `whoami.`      | Smoke test, `one_factor` so that it stays usable |
+| `auth.`        | Authelia                                         |
+| `flux.`        | Flux UI, authenticating over OIDC                |
+| `traefik.`     | Traefik dashboard                                |
+| `dns.`, `doh.` | blocky's API and DoH, with no public record      |
 
 ## DNS
 
@@ -40,7 +41,8 @@ downloaded blocklists.
   name, and blocky reads its configuration only at startup, so a change to
   `EXTERNAL_IP` takes effect on a restart of the Deployment.
 - `dns.` and `doh.` get no public record. blocky has no client ACL, so a `doh.`
-  reachable from the internet would be an open resolver.
+  reachable from the internet would be an open resolver. `dav.` gets none
+  either, so the tunnel never carries WebDAV.
 
 On the host, the third of these confirms that CoreDNS reaches blocky rather
 than staying with the public forwarders. Allow a few minutes after a restart
@@ -128,14 +130,14 @@ omission.
 
 `access_control` is the entire public surface. The first matching rule wins:
 
-| Rule                 | Policy     | Reason                                                               |
-| -------------------- | ---------- | -------------------------------------------------------------------- |
-| `auth.`              | bypass     | The portal would otherwise sit behind itself and redirect in a loop  |
-| `doh.` `^/dns-query` | bypass     | DoH clients cannot follow a browser redirect                         |
-| `whoami.`            | one_factor | Password only, so it remains a usable smoke test                     |
-| `files.`             | one_factor | WebDAV and sync clients send a password and cannot follow a redirect |
-| `*.${DOMAIN}`        | two_factor | Everything else                                                      |
-| (default)            | deny       | An unmatched host is refused rather than passed through              |
+| Rule                 | Policy     | Reason                                                              |
+| -------------------- | ---------- | ------------------------------------------------------------------- |
+| `auth.`              | bypass     | The portal would otherwise sit behind itself and redirect in a loop |
+| `doh.` `^/dns-query` | bypass     | DoH clients cannot follow a browser redirect                        |
+| `dav.`               | bypass     | WebDAV clients cannot either; HFS asks for its own password         |
+| `whoami.`            | one_factor | Password only, so it remains a usable smoke test                    |
+| `*.${DOMAIN}`        | two_factor | Everything else                                                     |
+| (default)            | deny       | An unmatched host is refused rather than passed through             |
 
 `*.${DOMAIN}` matches a single label, so the apex and any deeper name fall
 through to `deny` and need rules of their own. The Cloudflare tunnel reaches
@@ -159,8 +161,8 @@ Traefik, so port-forward survives both.
 
 ### Users and secrets
 
-Every value lives under `authelia/` in Infisical as a single-line secret. There
-is no JWT secret, because password reset and change are both disabled and
+Every value lives in Infisical under `authelia/`, apart from the users. There is
+no JWT secret, because password reset and change are both disabled and
 `identity_validation.reset_password` never runs.
 
 Generate hashes locally so that no plaintext reaches the cluster, using
@@ -169,9 +171,11 @@ and `authelia crypto pair rsa generate` for the JWKS key. The pbkdf2 command
 prints both the plaintext and the hash; the client receives one and Authelia
 the other.
 
-Adding a user takes a hash in Infisical and an entry in the ExternalSecret's
-`users_database.yml` template. `watch: true` means an ESO refresh is picked up
-without restarting the pod.
+Users are one JSON secret, `users`, shared with HFS ([Files](#hfs)), mapping
+each username to `displayname`, `email`, `groups`, `password` (the argon2 hash)
+and, for HFS, `hfs_srp`. The `authelia` ExternalSecret renders
+`users_database.yml` from it, so adding a user is an Infisical edit alone, and
+`watch: true` picks up the refresh without a restart.
 
 Enrolling a device for `two_factor` needs a one-time link that Authelia would
 normally send by email. The notifier writes to the filesystem instead:
@@ -199,17 +203,13 @@ calls the userinfo endpoint, so without a policy `claims.groups` is empty,
 impersonation grants nothing, and the failure looks like broken RBAC.
 
 Neither `oidc.yml` nor the users database is stored as a blob; the
-ExternalSecret builds both
+ExternalSecrets build both
 ([Cluster](cluster.md#config-files-built-from-secrets)). Authelia merges
 `--config a,b` and a section may not appear in both files, so
 `configuration.yml` carries no `identity_providers` block. The Flux UI's
 configuration has the same shape: `web.config` and `web.configSecretName` are
 mutually exclusive and the Secret must hold a complete `config.yaml`, so a
 client secret would otherwise pull the whole configuration out of git.
-
-User hashes arrive through `dataFrom.find` with a `transform` rewrite into
-`user_<name>_hash`. A Go template cannot reference a field that starts with a
-digit, so a username such as `149segolte` would not parse on its own.
 
 ## Glance
 
@@ -231,31 +231,46 @@ repository deploys, so a new component needs a line there as well. It reads
 unauthenticated limit of 60 requests an hour; a fine-grained token with no
 permissions is enough for public repositories.
 
-## Copyparty
+## Files
 
-Copyparty serves `/var/external` at `files.`. SFTP listens on 3922 through a
-Traefik entrypoint of its own, and the tunnel carries HTTP alone, so SFTP
-reaches the LAN and the tailnet only.
+One pod in `files` serves `/var/external`: HFS for the browser at `files.` and
+WebDAV at `dav.`, and OpenSSH for SFTP on 3922. The tunnel carries only HTTP, so
+SFTP reaches the LAN and the tailnet only.
 
-The partition is mounted through a static `local` PV, because the restricted
-profile rejects a `hostPath` volume in a pod spec and does not inspect claims.
-Two properties of the host mount sit outside version control and have to hold
-before the pod starts:
+The pod claims the whole partition ([Cluster](cluster.md#storage)). The host
+mount needs `context=system_u:object_r:container_file_t:s0` and has to be
+writable by UID 1000, which both containers run as.
 
-- The mount carries `context=system_u:object_r:container_file_t:s0`. An in-tree
-  volume plugin reports no `seLinuxMount`, so the runtime would otherwise
-  relabel the volume recursively under a level it picks per container.
-- The partition is writable by UID 1000. The pod sets no `fsGroup`, which would
-  rewrite group ownership across the partition on every mount.
+### HFS
 
-Copyparty takes `Remote-User` and `Remote-Groups` as it receives them. The
-Authelia middleware overwrites both on every routed request, so the identity
-holds for traffic through Traefik. No NetworkPolicy covers port 3923, and a pod
-that addresses the Service directly can claim any user.
+HFS rewrites its `config.yaml` on start, so an init container copies it from the
+ConfigMap into an `emptyDir`. Anything HFS changes at runtime, file comments
+included, is lost with the pod.
 
-An SFTP user signs in through the browser once before copyparty holds an
-account to match an `sftp-key` against, and copyparty keeps that account after
-Authelia drops the user. Removing the `sftp-key` line withdraws SFTP access.
+The `files` ExternalSecret gives HFS an account for each user in the shared
+`users` secret ([Auth](#users-and-secrets)) that has an `hfs_srp` verifier.
+To get one, run HFS locally with the password in plain text. It replaces
+`password` with `srp` on load, and that value goes into `hfs_srp`:
 
-Cloudflare caps a proxied request body at 100 MB. Browser uploads are chunked
-below it; a WebDAV `PUT` sends one request and fails above it.
+```bash
+cd "$(mktemp -d)" && printf 'accounts:\n  <username>:\n    password: <password>\n' > config.yaml
+npx hfs@latest
+```
+
+At `files.`, the `proxy-header-auth` plugin logs the browser in as the
+`Remote-User` Authelia sets. A pod that addresses the Service directly can
+claim any user. `dav.` bypasses Authelia, so WebDAV clients sign in with the
+password. HFS's `antibrute` plugin stays off, since clients behind Traefik share
+a source address.
+
+Cloudflare caps a request at 100 MB, so the browser uploads in 50 MB chunks.
+
+### SFTP
+
+sshd runs as UID 1000, so it logs in one user, `files`, limited to SFTP. Keys
+are in `authorized_keys`. The host key is `files/ssh-host-key` in Infisical, so
+it survives a rebuilt pod:
+
+```bash
+ssh-keygen -t ed25519 -N '' -C '' -f ssh_host_ed25519_key
+```

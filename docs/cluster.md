@@ -19,8 +19,9 @@ initialization --> infrastructure --> apps
 
 `initialization` holds what the later tiers build on: Traefik's
 `HelmChartConfig`, which declares the entrypoints Ingresses and IngressRoutes
-attach to, and External Secrets Operator, whose CRDs and `ClusterSecretStore`
-every `ExternalSecret` needs.
+attach to, External Secrets Operator, whose CRDs and `ClusterSecretStore`
+every `ExternalSecret` needs, and the volumes on the external partition
+([Storage](#storage)).
 
 Tiers reconcile every 10m and retry after 1m, so a transient failure costs a
 minute rather than a full interval. Timeouts grow down the chain as each tier
@@ -111,9 +112,9 @@ project's `prod` environment. A rotation reaches the cluster within
 
 When a component needs a configuration _file_ that contains a secret, the
 ExternalSecret builds it. `spec.target.template` with `engineVersion: v2` keeps
-the structure in git and interpolates one single-line Infisical value per
-secret. Authelia and the Flux UI both use this ([Services](services.md#oidc)).
-Three constraints apply:
+the structure in git and interpolates one Infisical value per secret. Authelia
+and the Flux UI both use this ([Services](services.md#oidc)). Three constraints
+apply:
 
 - Sprig is available, so a multi-line value such as a PEM goes into a block
   scalar with `nindent`. A quoted scalar folds the newlines into spaces, which
@@ -154,3 +155,18 @@ adds only what is missing:
 
 `runAsNonRoot` is not defaulted; a workload has to declare it, which keeps the
 choice of a non-root image with the workload.
+
+## Storage
+
+`local-path`, k3s's bundled provisioner, is the default StorageClass and holds
+application state. `external` is the partition at `/var/external`, with no
+provisioner: `initialization/external-storage/<app>.yaml` declares a PV for each
+folder an app uses, and the app's claim names it in `volumeName`. Apps share
+data, with the file server ([Services](services.md#files)) or each other,
+through these PVs rather than host mounts.
+
+- A PV binds one claim, so two apps sharing a folder each get a PV with the same
+  path.
+- A missing folder fails the pod rather than being created as root. Create it
+  first, as UID 1000.
+- PVs are retained, so deleting a claim keeps the data.
