@@ -34,3 +34,28 @@ scrape_configs:
       #     - scheduler_(pending_pods|schedule_attempts_total)
       #     - kubelet_running_(pods|containers)
       #     - kubelet_pleg_relist_duration_seconds_bucket
+
+  # cAdvisor's per-container metrics are served by the kubelet on its own port,
+  # outside the apiserver's registry. Node discovery supplies the InternalIP
+  # (node-ip) and kubelet port, which the kubelet's serving cert covers.
+  - job_name: cadvisor
+    scheme: https
+    metrics_path: /metrics/cadvisor
+    bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+    tls_config:
+      ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    kubernetes_sd_configs:
+      - role: node
+    # metric_relabel_configs:
+    #   - action: keep_metrics
+    #     regex:
+    #       - container_cpu_usage_seconds_total
+    #       - container_cpu_cfs_(periods|throttled_periods)_total
+    #       - container_memory_working_set_bytes
+    #       - container_memory_rss
+    #       - container_oom_events_total
+    #       - container_network_(receive|transmit)_bytes_total
+    #       - container_fs_(reads|writes)_bytes_total
+    #   # Host cgroups (system slices); the node root and pod series stay.
+    #   - action: drop
+    #     if: '{pod="", id!="/"}'

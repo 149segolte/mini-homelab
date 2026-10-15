@@ -161,6 +161,12 @@ histograms. `scrape.yaml` keeps an allowlist of metric names, and
 about two thousand. A dropped metric is never stored, so one added to the
 allowlist has history from then on.
 
+The kubelet serves cAdvisor's per-container metrics on port 10250, outside that
+registry, so a second job scrapes it. The target comes from node discovery. A
+ClusterRole grants `list`/`watch` on nodes for the discovery and `get` on
+`nodes/metrics`, which the kubelet checks for the scrape. Pod traffic reaches
+the host through the `k8s` firewalld zone.
+
 Retention is 90 days. The pod has no memory limit, so `-memory.allowedBytes`
 bounds the caches instead. `local-path` does not enforce the volume size, so
 `-storage.minFreeDiskSpaceBytes` stops ingestion before `/var` runs out.
