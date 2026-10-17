@@ -63,6 +63,7 @@ pages:
                   - linuxserver/docker-openssh-server
                   - VictoriaMetrics/VictoriaMetrics
                   - grafana/grafana
+                  - kubernetes/kube-state-metrics
 
       - size: small
         widgets:

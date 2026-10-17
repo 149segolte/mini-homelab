@@ -4,5 +4,6 @@ resources:
   - files
   - glance
   - grafana
+  - kube-state-metrics
   - victoria-metrics
   - whoami

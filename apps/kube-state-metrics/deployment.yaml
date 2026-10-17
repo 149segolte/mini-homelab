@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-state-metrics
+  namespace: kube-state-metrics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kube-state-metrics
+  template:
+    metadata:
+      labels:
+        app: kube-state-metrics
+    spec:
+      serviceAccountName: kube-state-metrics
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: kube-state-metrics
+          image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0
+          args:
+            - --resources=pods,nodes,persistentvolumeclaims,daemonsets,deployments
+            # # Matched unanchored, hence ^...$. Repeated flags add to one list.
+            # # Restarts, readiness, CrashLoopBackOff/ImagePullBackOff, OOMKilled.
+            # - --metric-allowlist=^kube_pod_container_status_(restarts_total|ready|waiting_reason|last_terminated_reason)$
+            # # Requests over allocatable is how full the node is.
+            # - --metric-allowlist=^kube_pod_container_resource_(requests|limits)$
+            # - --metric-allowlist=^kube_node_status_allocatable$
+            # # Available against desired.
+            # - --metric-allowlist=^kube_deployment_(spec_replicas|status_replicas_available)$
+            # - --metric-allowlist=^kube_statefulset_(replicas|status_replicas_available)$
+            # - --metric-allowlist=^kube_daemonset_status_(desired_number_scheduled|number_available)$
+            # - --metric-allowlist=^kube_persistentvolumeclaim_(status_phase|resource_requests_storage_bytes)$
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: telemetry
+              containerPort: 8081
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            # limits:
+            #   memory: 64Mi
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: telemetry
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 30

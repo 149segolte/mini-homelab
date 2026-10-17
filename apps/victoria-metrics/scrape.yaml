@@ -59,3 +59,8 @@ scrape_configs:
     #   # Host cgroups (system slices); the node root and pod series stay.
     #   - action: drop
     #     if: '{pod="", id!="/"}'
+
+  # KSM trims its own output with --resources and --metric-allowlist.
+  - job_name: kube-state-metrics
+    static_configs:
+      - targets: ["kube-state-metrics.kube-state-metrics.svc:8080"]
