@@ -89,12 +89,14 @@ image, so it involves no webhook and cannot fail closed.
 - `PodSecurity` enforces `restricted` on every namespace except `kube-system`,
   including unlabelled ones.
 - A static `MutatingAdmissionPolicy` fills in what is missing on pod creation:
-  `seccompProfile: RuntimeDefault`, `allowPrivilegeEscalation: false`, and
-  `capabilities.drop: [ALL]`. A container that sets any `capabilities` of its
-  own is left alone and has to drop `ALL` itself.
+  `seccompProfile: RuntimeDefault`, `runAsNonRoot: true`, `runAsUser: 65534`,
+  `allowPrivilegeEscalation: false`, and `capabilities.drop: [ALL]`. A
+  container that sets any `capabilities` of its own is left alone and has to
+  drop `ALL` itself.
 
-`runAsNonRoot` is not defaulted. Each workload declares it, along with
-`runAsUser` when the image has no `USER`.
+The user default is pod-level, so it overrides the image's `USER`. A workload
+that needs a specific UID, for file ownership for instance, sets `runAsUser`
+itself.
 
 ## Storage
 

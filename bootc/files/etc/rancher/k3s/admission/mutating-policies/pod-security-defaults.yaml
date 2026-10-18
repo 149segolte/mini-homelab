@@ -18,6 +18,14 @@ spec:
           has(object.spec.securityContext.seccompProfile) ? [] : [JSONPatch{
             op: "add", path: "/spec/securityContext/seccompProfile",
             value: Object.spec.securityContext.seccompProfile{type: "RuntimeDefault"}}]
+    # Pod-level user covers every container
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >
+          (has(object.spec.securityContext.runAsNonRoot) ? [] : [JSONPatch{
+            op: "add", path: "/spec/securityContext/runAsNonRoot", value: true}]) +
+          (has(object.spec.securityContext.runAsUser) ? [] : [JSONPatch{
+            op: "add", path: "/spec/securityContext/runAsUser", value: 65534}])
     # Also creates securityContext where a container has none
     - patchType: ApplyConfiguration
       applyConfiguration:
