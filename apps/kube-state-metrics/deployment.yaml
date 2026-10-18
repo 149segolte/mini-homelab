@@ -18,7 +18,7 @@ spec:
         - name: kube-state-metrics
           image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.20.0
           args:
-            - --resources=pods,nodes,persistentvolumeclaims,daemonsets,deployments
+            - --resources=pods,nodes,namespaces,persistentvolumeclaims,daemonsets,deployments
             # # Matched unanchored, hence ^...$. Repeated flags add to one list.
             # # Restarts, readiness, CrashLoopBackOff/ImagePullBackOff, OOMKilled.
             # - --metric-allowlist=^kube_pod_container_status_(restarts_total|ready|waiting_reason|last_terminated_reason)$
