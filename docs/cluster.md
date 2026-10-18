@@ -18,6 +18,11 @@ Secrets Operator and the external-partition volumes. A component that needs its
 own ordering nests a Flux Kustomization per step, as external-secrets
 (`crds -> operator -> crs`) and cert-manager (`controller -> issuers`) do.
 
+The `flux-system` GitRepository polls every minute. Every other Flux interval is
+`1h`: a new revision reconciles its Kustomizations and HelmReleases immediately,
+so the interval only bounds drift correction. A failed reconcile retries after
+`retryInterval: 1m`.
+
 ### Variables
 
 Every tier substitutes `${...}` from the `cluster-vars` ConfigMap: `DOMAIN`,

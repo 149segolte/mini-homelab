@@ -18,6 +18,7 @@ spec:
     networkPolicy: true
   sync:
     kind: GitRepository
+    interval: 1m
     provider: github
     url: "https://github.com/149segolte/mini-homelab.git"
     ref: "refs/heads/main"
