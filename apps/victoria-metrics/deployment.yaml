@@ -17,10 +17,6 @@ spec:
         app: victoria-metrics
     spec:
       serviceAccountName: victoria-metrics
-      securityContext:
-        runAsNonRoot: true
-        # The image has no USER; without this it is root.
-        runAsUser: 65534
       containers:
         - name: victoria-metrics
           image: docker.io/victoriametrics/victoria-metrics:v1.154.0

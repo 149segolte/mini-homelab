@@ -13,8 +13,6 @@ spec:
       labels:
         app: grafana
     spec:
-      securityContext:
-        runAsNonRoot: true
       containers:
         - name: grafana
           image: docker.io/grafana/grafana:13.2.4

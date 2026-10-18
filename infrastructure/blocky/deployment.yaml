@@ -13,8 +13,6 @@ spec:
       labels:
         app: blocky
     spec:
-      securityContext:
-        runAsNonRoot: true
       containers:
         - name: blocky
           image: ghcr.io/0xerr0r/blocky:v0.35.0

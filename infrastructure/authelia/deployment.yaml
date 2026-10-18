@@ -17,10 +17,6 @@ spec:
         app: authelia
     spec:
       enableServiceLinks: false
-      securityContext:
-        runAsNonRoot: true
-        # authelia does not set a user, so runAsUser is needed.
-        runAsUser: 65534
       containers:
         - name: authelia
           image: docker.io/authelia/authelia:4.39
