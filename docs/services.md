@@ -183,5 +183,6 @@ Grafana keeps no state. Its datasource and dashboards are provisioned from
 is added as JSON under `apps/grafana/dashboards/` and listed in the
 `grafana-dashboards` generator. An exported dashboard that uses `${...}`
 variables needs the substitution-disabled annotation
-([Cluster](cluster.md#variables)). Users sign in over OIDC and become Editors,
-or Admins in the `admins` group.
+([Cluster](cluster.md#variables)). Plugins are pinned under `preinstall_sync`
+in `grafana.ini` and downloaded from grafana.com on every start. Users sign in
+over OIDC and become Editors, or Admins in the `admins` group.
