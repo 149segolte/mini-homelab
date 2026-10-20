@@ -1,10 +1,8 @@
 # SPDX-License-Identifier: MPL-2.0
 
 ARG COREDNS_VERSION=1.14.6
-ARG GLANCE_AGENT_VERSION=v0.1.0
 
 FROM docker.io/coredns/coredns:${COREDNS_VERSION} AS coredns
-FROM docker.io/glanceapp/agent:${GLANCE_AGENT_VERSION} AS glance-agent
 
 # Pinned to stable releases
 FROM quay.io/fedora/fedora-bootc:44
@@ -14,7 +12,6 @@ LABEL org.opencontainers.image.description="Container services host for Raspberr
 LABEL org.opencontainers.image.source="https://github.com/149segolte/mini-homelab"
 
 COPY --from=coredns /coredns /usr/bin/coredns
-COPY --from=glance-agent /app/agent /usr/bin/glance-agent
 
 # ostree recreates /var at boot from tmpfiles.d and /run and /tmp are tmpfs, so
 # anything dnf leaves there is just a `bootc container lint` warning.
@@ -65,7 +62,6 @@ RUN systemctl enable chronyd.service \
     network-mode.service \
     preroute-priority.service \
     coredns.service \
-    glance-agent.service \
     tailscaled.service \
     k3s.service
 

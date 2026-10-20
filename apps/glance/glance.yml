@@ -13,6 +13,23 @@ pages:
     columns:
       - size: full
         widgets:
+          - type: split-column
+            max-columns: 2
+            widgets:
+              - type: clock
+                hour-format: 24h
+                timezones:
+                  - timezone: US/Pacific
+                    label: West Coast
+                  - timezone: Etc/UTC
+                    label: UTC
+                  - timezone: Asia/Kolkata
+                    label: India
+              - type: weather
+                location: ${LOCATION}
+                hour-format: 24h
+                show-area-name: true
+
           - type: search
             autofocus: true
             search-engine: google
@@ -27,64 +44,38 @@ pages:
               show-if: |
                 "glance/name" in annotations
 
-          - type: split-column
-            max-columns: 2
-            widgets:
-              - type: bookmarks
-                groups:
-                  - title: Cluster
-                    links:
-                      - title: Traefik Dashboard
-                        url: https://traefik.${DOMAIN}
-                      - title: whoami (echo server)
-                        url: https://whoami.${DOMAIN}
-                      - title: Cloudflare Tunnels
-                        url: https://dash.cloudflare.com/?to=/:account/tunnels
-              - type: releases
-                token: $${GITHUB_TOKEN}
-                repositories:
-                  # Host
-                  - coredns/coredns
-                  - glanceapp/agent
-                  - k3s-io/k3s
-                  - fluxcd/flux2
-                  # Infrastructure
-                  - controlplaneio-fluxcd/flux-operator
-                  - external-secrets/external-secrets
-                  - cert-manager/cert-manager
-                  - authelia/authelia
-                  - cloudflare/cloudflared
-                  - 0xERR0R/blocky
-                  # Services
-                  - traefik/whoami
-                  - glanceapp/glance
-                  - lukasdietrich/glance-k8s
-                  - rejetto/hfs
-                  - linuxserver/docker-openssh-server
-                  - VictoriaMetrics/VictoriaMetrics
-                  - grafana/grafana
-                  - kubernetes/kube-state-metrics
-
       - size: small
         widgets:
-          - type: server-stats
-            servers:
-              # The host, through glance-agent on the cni0 address.
-              - type: remote
-                name: mini-homelab
-                url: http://10.42.0.1:27973
-
-          - type: clock
-            hour-format: 24h
-            timezones:
-              - timezone: US/Pacific
-                label: West Coast
-              - timezone: Etc/UTC
-                label: UTC
-              - timezone: Asia/Kolkata
-                label: India
-
-          - type: weather
-            location: ${LOCATION}
-            hour-format: 24h
-            show-area-name: true
+          - type: bookmarks
+            groups:
+              - title: Cluster
+                links:
+                  - title: Traefik Dashboard
+                    url: https://traefik.${DOMAIN}
+                  - title: whoami (echo server)
+                    url: https://whoami.${DOMAIN}
+                  - title: Cloudflare Tunnels
+                    url: https://dash.cloudflare.com/?to=/:account/tunnels
+          - type: releases
+            token: $${GITHUB_TOKEN}
+            repositories:
+              # Host
+              - coredns/coredns
+              - k3s-io/k3s
+              - fluxcd/flux2
+              # Infrastructure
+              - controlplaneio-fluxcd/flux-operator
+              - external-secrets/external-secrets
+              - cert-manager/cert-manager
+              - authelia/authelia
+              - cloudflare/cloudflared
+              - 0xERR0R/blocky
+              # Services
+              - traefik/whoami
+              - glanceapp/glance
+              - lukasdietrich/glance-k8s
+              - rejetto/hfs
+              - linuxserver/docker-openssh-server
+              - VictoriaMetrics/VictoriaMetrics
+              - grafana/grafana
+              - kubernetes/kube-state-metrics

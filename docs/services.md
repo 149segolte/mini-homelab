@@ -117,8 +117,7 @@ the userinfo endpoint and needs no policy.
 
 ## Glance
 
-The dashboard at `mini.` takes host metrics from `glance-agent` on the host,
-bound to 10.42.0.1 so only pods reach it. In `glance.yml`, `${...}` is Flux's
+The dashboard is at `mini.`. In `glance.yml`, `${...}` is Flux's
 and `$${...}` passes through to Glance. The `releases` widget lists every
 deployed component's upstream repository.
 
