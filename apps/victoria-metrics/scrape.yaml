@@ -60,6 +60,10 @@ scrape_configs:
     #   - action: drop
     #     if: '{pod="", id!="/"}'
 
+  - job_name: node-exporter
+    static_configs:
+      - targets: ["node-exporter.node-exporter.svc:9100"]
+
   # KSM trims its own output with --resources and --metric-allowlist.
   - job_name: kube-state-metrics
     static_configs:

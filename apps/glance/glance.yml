@@ -61,6 +61,7 @@ pages:
             repositories:
               # Host
               - coredns/coredns
+              - prometheus/node_exporter
               - k3s-io/k3s
               - fluxcd/flux2
               # Infrastructure

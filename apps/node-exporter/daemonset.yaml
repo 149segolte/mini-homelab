@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+  namespace: node-exporter
+spec:
+  selector:
+    matchLabels:
+      app: node-exporter
+  template:
+    metadata:
+      labels:
+        app: node-exporter
+    spec:
+      containers:
+        - name: node-exporter
+          image: quay.io/prometheus/node-exporter:v1.12.1
+          args:
+            - --path.procfs=/host/proc
+            - --path.sysfs=/host/sys
+            - --path.rootfs=/host/root
+            # Exclude pod mounts and veths as they change often.
+            - --collector.filesystem.mount-points-exclude=^/(dev|proc|run/credentials/.+|run/k3s/.+|sys|var/lib/kubelet/.+)($|/)
+            - --collector.netclass.ignored-devices=^veth
+            # /proc/net, /proc/sys/net and netlink follow the reader's network
+            # namespace, which is the pod's. Host traffic comes from cAdvisor.
+            - --no-collector.arp
+            - --no-collector.conntrack
+            - --no-collector.ipvs
+            - --no-collector.netdev
+            - --no-collector.netstat
+            - --no-collector.nfs
+            - --no-collector.nfsd
+            - --no-collector.sockstat
+            - --no-collector.udp_queues
+          ports:
+            - name: http
+              containerPort: 9100
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+          volumeMounts:
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+            - name: root
+              mountPath: /host/root
+              readOnly: true
+              mountPropagation: HostToContainer
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
+        - name: root
+          hostPath:
+            path: /
