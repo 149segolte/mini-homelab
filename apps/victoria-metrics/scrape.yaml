@@ -68,3 +68,8 @@ scrape_configs:
   - job_name: kube-state-metrics
     static_configs:
       - targets: ["kube-state-metrics.kube-state-metrics.svc:8080"]
+
+  # VictoriaMetrics itself: storage size, ingestion rate and scrape health.
+  - job_name: victoria-metrics
+    static_configs:
+      - targets: ["localhost:8428"]
