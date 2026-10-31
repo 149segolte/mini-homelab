@@ -17,6 +17,8 @@ spec:
         - name: grafana
           image: docker.io/grafana/grafana:13.2.4
           env:
+            - name: GOMEMLIMIT
+              value: 480MiB
             - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
               valueFrom:
                 secretKeyRef:
@@ -33,9 +35,9 @@ spec:
           resources:
             requests:
               cpu: 10m
-              memory: 128Mi
+              memory: 256Mi
             # limits:
-            #   memory: 256Mi
+            #   memory: 512Mi
           readinessProbe:
             httpGet:
               path: /api/health
